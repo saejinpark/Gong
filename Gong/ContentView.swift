@@ -2,26 +2,35 @@
 //  ContentView.swift
 //  Gong
 //
-//  Created by 박세진 on 2/27/25.
+//  Created by 박세진 on 5/3/26.
 //
 
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 struct ContentView: View {
-    @Environment(\.modelContext) private var modelContext
-
     var body: some View {
-        WorkCalculator()
+        TabView {
+            CalendarView()
+                .tabItem {
+                    Label("공수", systemImage: "calendar")
+                }
+            
+            SiteListView()
+                .tabItem {
+                    Label("현장", systemImage: "building.2")
+                }
+            
+            SettlementView()
+                .tabItem {
+                    Label("정산", systemImage: "wonsign")
+                }
+        }
+        .tint(.accentColor)
     }
 }
 
 #Preview {
     ContentView()
-        .modelContainer(for: [
-            MonthlyWork.self,
-            WeeklyWork.self,
-            DailyWork.self
-            
-        ], inMemory: true)
+        .modelContainer(for: [Site.self, WorkEntry.self], inMemory: true)
 }

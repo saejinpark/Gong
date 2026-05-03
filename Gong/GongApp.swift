@@ -2,7 +2,7 @@
 //  GongApp.swift
 //  Gong
 //
-//  Created by 박세진 on 2/27/25.
+//  Created by 박세진 on 5/3/26.
 //
 
 import SwiftUI
@@ -10,25 +10,21 @@ import SwiftData
 
 @main
 struct GongApp: App {
-    var sharedModelContainer: ModelContainer = {
-        let schema = Schema([
-            MonthlyWork.self,
-            WeeklyWork.self,
-            DailyWork.self
-        ])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
-
+    
+    let container: ModelContainer = {
+        let schema = Schema([Site.self, WorkEntry.self])
+        let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
         do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
+            return try ModelContainer(for: schema, configurations: config)
         } catch {
-            fatalError("Could not create ModelContainer: \(error)")
+            fatalError("ModelContainer 생성 실패: \(error)")
         }
     }()
-
+    
     var body: some Scene {
         WindowGroup {
             ContentView()
         }
-        .modelContainer(sharedModelContainer)
+        .modelContainer(container)
     }
 }
