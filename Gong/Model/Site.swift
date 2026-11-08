@@ -20,6 +20,8 @@ class Site {
     var taxModeRaw: String = TaxMode.withholding.rawValue
     /// 기본 식대 — 공수 입력 시 자동으로 채워짐
     var defaultMealAllowance: Int = 0
+    /// 달력·목록에서 현장을 구분하는 색 (Theme.Colors.sitePalette 인덱스)
+    var colorIndex: Int = 0
     @Relationship(deleteRule: .nullify) var entries: [WorkEntry] = []
 
     init(
@@ -30,7 +32,8 @@ class Site {
         memo: String = "",
         isActive: Bool = true,
         taxMode: TaxMode = .withholding,
-        defaultMealAllowance: Int = 0
+        defaultMealAllowance: Int = 0,
+        colorIndex: Int = 0
     ) {
         self.name = name
         self.defaultWage = defaultWage
@@ -40,6 +43,7 @@ class Site {
         self.isActive = isActive
         self.taxModeRaw = taxMode.rawValue
         self.defaultMealAllowance = defaultMealAllowance
+        self.colorIndex = colorIndex
     }
 
     var taxMode: TaxMode {

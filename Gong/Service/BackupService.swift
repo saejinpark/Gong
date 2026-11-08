@@ -19,6 +19,7 @@ struct BackupDocument: Codable {
         var isActive: Bool
         var taxMode: String
         var defaultMealAllowance: Int
+        var colorIndex: Int?
     }
 
     struct EntryDTO: Codable {
@@ -80,7 +81,8 @@ enum BackupService {
                 memo: site.memo,
                 isActive: site.isActive,
                 taxMode: site.taxModeRaw,
-                defaultMealAllowance: site.defaultMealAllowance
+                defaultMealAllowance: site.defaultMealAllowance,
+                colorIndex: site.colorIndex
             )
         }
         let entryDTOs = entries
@@ -149,7 +151,8 @@ enum BackupService {
                 memo: dto.memo,
                 isActive: dto.isActive,
                 taxMode: TaxMode(rawValue: dto.taxMode) ?? .withholding,
-                defaultMealAllowance: dto.defaultMealAllowance
+                defaultMealAllowance: dto.defaultMealAllowance,
+                colorIndex: dto.colorIndex ?? 0
             )
             context.insert(site)
             sitesByID[dto.id] = site

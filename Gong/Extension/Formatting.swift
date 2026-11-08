@@ -63,14 +63,6 @@ enum Format {
 }
 
 extension Color {
-    /// 공수 크기에 따른 색 — 달력 배지, 기록 행, 프리셋 버튼이 모두 같은 색을 씀
-    static func manUnit(_ value: Double) -> Color {
-        switch value {
-        case ..<0.1:   return .gray
-        case 0.1..<1:  return .gray.opacity(0.75)
-        case 1..<1.5:  return .green
-        case 1.5..<2:  return .blue
-        default:       return .red
-        }
-    }
+    /// 공수 크기 색 — Theme 토큰으로 위임
+    static func manUnit(_ value: Double) -> Color { Theme.Colors.manUnit(value) }
 }

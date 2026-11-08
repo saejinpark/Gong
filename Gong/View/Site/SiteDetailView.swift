@@ -44,6 +44,23 @@ struct SiteDetailView: View {
 
     var body: some View {
         List {
+            // MARK: - 요약 카드
+            Section {
+                HeroCard(
+                    title: "누적 실수령액",
+                    amount: totalNetAmount,
+                    caption: "\(Format.manUnit(totalManUnit))공수 · \(site.entries.count)일 · 이번 달 \(Format.manUnit(thisMonthEntries.reduce(0) { $0 + $1.manUnit }))공수",
+                    tint: Theme.Colors.site(site.colorIndex)
+                ) {
+                    if !unpaid.isEmpty {
+                        TagChip(text: "미입금 \(unpaidAmount.formatted())원 · \(unpaid.count)건", tint: .white.opacity(0.25))
+                            .padding(.top, Theme.Spacing.xs)
+                    }
+                }
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
+            }
+
             // MARK: - 현장 정보
             Section("현장 정보") {
                 LabeledContent("기본 단가") {
@@ -82,34 +99,6 @@ struct SiteDetailView: View {
                     Text(site.isActive ? "진행중" : "종료")
                         .foregroundStyle(site.isActive ? .green : .secondary)
                         .fontWeight(.medium)
-                }
-            }
-
-            // MARK: - 집계
-            Section("집계") {
-                LabeledContent("이번 달") {
-                    Text("\(Format.manUnit(thisMonthEntries.reduce(0) { $0 + $1.manUnit }))공수 · \(Format.won(thisMonthEntries.reduce(0) { $0 + $1.netAmount }))")
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
-                }
-                LabeledContent("누적 공수") {
-                    Text("\(Format.manUnit(totalManUnit))공수 · \(site.entries.count)일")
-                        .foregroundStyle(Color.accentColor)
-                        .fontWeight(.semibold)
-                }
-                LabeledContent("누적 실수령액") {
-                    Text(Format.won(totalNetAmount))
-                        .foregroundStyle(Color.accentColor)
-                        .fontWeight(.semibold)
-                        .monospacedDigit()
-                }
-                if !unpaid.isEmpty {
-                    LabeledContent("미입금") {
-                        Text("\(unpaid.count)건 · \(Format.won(unpaidAmount))")
-                            .foregroundStyle(.red)
-                            .fontWeight(.semibold)
-                            .monospacedDigit()
-                    }
                 }
             }
 

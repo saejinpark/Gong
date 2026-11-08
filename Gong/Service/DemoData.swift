@@ -19,11 +19,11 @@ enum DemoData {
         guard let monthStart = calendar.dateInterval(of: .month, for: today)?.start else { return }
 
         let siteA = Site(name: "평택 1공구", defaultWage: 200_000, startDate: calendar.date(byAdding: .month, value: -2, to: today) ?? today,
-                         location: "경기 평택시", memo: "형틀목공 · 김반장", taxMode: .withholding, defaultMealAllowance: 10_000)
+                         location: "경기 평택시", memo: "형틀목공 · 김반장", taxMode: .withholding, defaultMealAllowance: 10_000, colorIndex: 0)
         let siteB = Site(name: "동탄 오피스텔", defaultWage: 180_000, startDate: calendar.date(byAdding: .month, value: -1, to: today) ?? today,
-                         location: "경기 화성시", taxMode: .business)
+                         location: "경기 화성시", taxMode: .business, colorIndex: 1)
         let siteC = Site(name: "안성 물류센터", defaultWage: 170_000, startDate: calendar.date(byAdding: .month, value: -5, to: today) ?? today,
-                         location: "경기 안성시", isActive: false, taxMode: .none)
+                         location: "경기 안성시", isActive: false, taxMode: .none, colorIndex: 5)
         [siteA, siteB, siteC].forEach { context.insert($0) }
 
         let weathers: [WeatherCondition] = [.sunny, .sunny, .cloudy, .sunny, .rainy, .sunny, .cloudy]

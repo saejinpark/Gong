@@ -60,6 +60,10 @@ struct CalendarView: View {
         calendar.isDate(currentMonth, equalTo: .now, toGranularity: .month)
     }
 
+    private var todayHasEntry: Bool {
+        entries.contains { calendar.isDateInToday($0.date) }
+    }
+
     var body: some View {
         NavigationStack {
             GeometryReader { screen in
@@ -71,6 +75,7 @@ struct CalendarView: View {
                         .transition(.opacity)
                 }
             }
+            .background(Theme.Colors.background)
             .animation(.easeInOut(duration: 0.3), value: isWeekMode)
             .navigationTitle(Format.monthTitle.string(from: currentMonth))
             .navigationBarTitleDisplayMode(.inline)
@@ -84,7 +89,7 @@ struct CalendarView: View {
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     if !isCurrentMonthShown {
                         Button("오늘") { goToToday() }
-                            .font(.subheadline)
+                            .font(Theme.Fonts.label)
                     }
                     Button { shiftMonth(1) } label: {
                         Image(systemName: "chevron.right")
@@ -105,58 +110,107 @@ struct CalendarView: View {
 
     // MARK: - 월간 모드
     private func monthModeView(height: CGFloat) -> some View {
-        ScrollView {
-            VStack(spacing: 0) {
-                VStack(spacing: 0) {
-                    weekdayHeader
-                    Divider()
-                    let rows = CGFloat(max(monthWeeks.count, 1))
-                    let calendarHeight = min(max(height - 40, 280), rows * 96)
-                    monthGrid(height: calendarHeight)
-                        .frame(height: calendarHeight)
+        let summary = MonthlySummary(month: currentMonth, entries: currentMonthEntries)
+        let rows = CGFloat(max(monthWeeks.count, 1))
+        let rowHeight = min(max((height - 320) / rows, 58), 84)
+
+        return ScrollView {
+            VStack(spacing: Theme.Spacing.md) {
+                monthHero(summary)
+
+                if isCurrentMonthShown && !todayHasEntry {
+                    todayAction
                 }
 
                 VStack(spacing: 0) {
-                    HStack {
-                        Text("월간 요약")
-                            .font(.headline.bold())
-                        Spacer()
-                        if !currentMonthEntries.isEmpty {
-                            ShareLink(item: SettlementExporter.text(for: MonthlySummary(month: currentMonth, entries: currentMonthEntries))) {
-                                Label("공유", systemImage: "square.and.arrow.up")
-                                    .font(.subheadline)
-                            }
-                        }
-                    }
-                    .padding()
+                    weekdayHeader
+                    Divider()
+                    monthGrid(rowHeight: rowHeight)
+                        .frame(height: rowHeight * rows)
+                }
+                .background(Theme.Colors.surface, in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
 
-                    monthSummaryContent
+                if !summary.entries.isEmpty {
+                    monthSummaryCard(summary)
                 }
 
                 if sites.isEmpty && entries.isEmpty {
                     onboardingHint
                 }
             }
+            .padding(.horizontal, Theme.Spacing.lg)
+            .padding(.top, Theme.Spacing.sm)
+            .padding(.bottom, Theme.Spacing.xl)
         }
         .scrollIndicators(.hidden)
         .simultaneousGesture(monthSwipeGesture)
     }
 
-    private var onboardingHint: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Label("처음이신가요?", systemImage: "hand.wave")
-                .font(.headline)
-            Text("날짜를 누르면 그날 공수를 적을 수 있어요. 현장을 먼저 등록해 두면 단가와 세금 방식이 자동으로 채워져요.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            Text("날짜를 길게 누르면 1공수를 바로 넣을 수 있어요.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+    private func monthHero(_ summary: MonthlySummary) -> some View {
+        let month = calendar.component(.month, from: currentMonth)
+        let caption = summary.entries.isEmpty
+            ? "아직 기록이 없어요"
+            : "\(Format.manUnit(summary.manUnit))공수 · \(summary.workDays)일 근무"
+        return HeroCard(title: "\(month)월 실수령액", amount: summary.net, caption: caption) {
+            if summary.tax > 0 || summary.unpaidAmount > 0 {
+                HStack(spacing: Theme.Spacing.sm) {
+                    if summary.tax > 0 {
+                        TagChip(text: "세금 -\(summary.tax.formatted())원", tint: .white.opacity(0.25))
+                    }
+                    if summary.unpaidAmount > 0 {
+                        TagChip(text: "미입금 \(summary.unpaidAmount.formatted())원 · \(summary.unpaid.count)건", tint: .white.opacity(0.25))
+                    }
+                }
+                .padding(.top, Theme.Spacing.xs)
+            }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(Color(.systemGroupedBackground), in: RoundedRectangle(cornerRadius: 12))
-        .padding([.horizontal, .bottom])
+    }
+
+    private var todayAction: some View {
+        VStack(spacing: Theme.Spacing.sm) {
+            if let site = recentSite.flatMap({ $0.isActive ? $0 : nil }) ?? activeSites.first {
+                BigActionButton(
+                    title: "오늘 1공수 기록",
+                    subtitle: "\(site.name) · \(Format.won(site.defaultWage))",
+                    systemImage: "bolt.fill"
+                ) {
+                    quickAdd(site: site, manUnit: 1, date: .now)
+                }
+                Button {
+                    sheet = .new(.now)
+                } label: {
+                    Text("다른 공수나 현장으로 기록하기")
+                        .font(Theme.Fonts.label)
+                        .foregroundStyle(Theme.Colors.brand)
+                        .frame(maxWidth: .infinity, minHeight: Theme.minTapTarget)
+                }
+                .buttonStyle(.plain)
+            } else {
+                BigActionButton(
+                    title: "오늘 공수 기록하기",
+                    subtitle: "현장을 등록하면 다음부터 한 번에 기록돼요",
+                    systemImage: "square.and.pencil"
+                ) {
+                    sheet = .new(.now)
+                }
+            }
+        }
+    }
+
+    private var onboardingHint: some View {
+        GCard {
+            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                Label("처음이신가요?", systemImage: "hand.wave")
+                    .font(Theme.Fonts.headline)
+                Text("현장 탭에서 현장을 먼저 등록해 두면 단가와 세금 방식이 자동으로 채워져요.")
+                    .font(Theme.Fonts.label)
+                    .foregroundStyle(Theme.Colors.textSecondary)
+                Text("달력에서 날짜를 누르면 그날 기록을 보고, 길게 누르면 1공수를 바로 넣을 수 있어요.")
+                    .font(Theme.Fonts.label)
+                    .foregroundStyle(Theme.Colors.textSecondary)
+            }
+        }
     }
 
     // MARK: - 주간 모드
@@ -167,6 +221,7 @@ struct CalendarView: View {
                 Divider()
                 weekGrid
             }
+            .background(Theme.Colors.surface)
 
             Divider()
 
@@ -179,24 +234,14 @@ struct CalendarView: View {
                     let todayEntries = dayEntries(for: date)
 
                     if todayEntries.isEmpty {
-                        ContentUnavailableView(
-                            "기록 없음",
-                            systemImage: "doc.text",
-                            description: Text("공수를 입력해보세요")
-                        )
+                        EmptyStateView(systemImage: "doc.text", title: "기록 없음", message: "아래 버튼으로 공수를 입력해 보세요")
                     } else {
                         ForEach(todayEntries) { entry in
                             EntryRow(entry: entry, showsDate: false)
                                 .contentShape(Rectangle())
                                 .onTapGesture { sheet = .edit(entry) }
                                 .swipeActions(edge: .leading) {
-                                    Button {
-                                        entry.isPaid.toggle()
-                                        try? context.save()
-                                    } label: {
-                                        Label(entry.isPaid ? "미입금으로" : "입금 완료", systemImage: entry.isPaid ? "arrow.uturn.backward" : "checkmark.circle")
-                                    }
-                                    .tint(entry.isPaid ? .gray : .green)
+                                    paidToggle(entry)
                                 }
                         }
                         .onDelete { offsets in
@@ -208,20 +253,33 @@ struct CalendarView: View {
                         sheet = .new(date)
                     } label: {
                         Label("공수 추가", systemImage: "plus")
-                            .frame(maxWidth: .infinity, alignment: .center)
-                            .foregroundStyle(Color.accentColor)
+                            .font(Theme.Fonts.headline)
+                            .frame(maxWidth: .infinity, minHeight: Theme.minTapTarget, alignment: .center)
+                            .foregroundStyle(Theme.Colors.brand)
                     }
                 } header: {
                     HStack(spacing: 6) {
                         Text(Format.dayTitle.string(from: date))
                         if let name = HolidayService.holidayName(for: date) {
-                            Text(name).foregroundStyle(.red)
+                            Text(name).foregroundStyle(Theme.Colors.holiday)
                         }
                     }
                 }
             }
             .listStyle(.insetGrouped)
+            .scrollContentBackground(.hidden)
+            .background(Theme.Colors.background)
         }
+    }
+
+    private func paidToggle(_ entry: WorkEntry) -> some View {
+        Button {
+            entry.isPaid.toggle()
+            try? context.save()
+        } label: {
+            Label(entry.isPaid ? "미입금으로" : "입금 완료", systemImage: entry.isPaid ? "arrow.uturn.backward" : "checkmark.circle")
+        }
+        .tint(entry.isPaid ? Color(.systemGray) : Theme.Colors.positive)
     }
 
     // MARK: - 요일 헤더
@@ -229,15 +287,15 @@ struct CalendarView: View {
         HStack(spacing: 0) {
             ForEach(weekdaySymbols, id: \.self) { symbol in
                 Text(symbol)
-                    .font(.caption.bold())
+                    .font(Theme.Fonts.caption.bold())
                     .foregroundStyle(
-                        symbol == "일" ? .red :
-                        symbol == "토" ? .blue : .secondary
+                        symbol == "일" ? Theme.Colors.holiday :
+                        symbol == "토" ? Theme.Colors.saturday : Theme.Colors.textSecondary
                     )
                     .frame(maxWidth: .infinity)
             }
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, Theme.Spacing.sm)
     }
 
     // MARK: - 주간 그리드
@@ -248,7 +306,7 @@ struct CalendarView: View {
                 weekDayCellView(for: week[idx])
                 if idx < week.count - 1 {
                     Rectangle()
-                        .fill(Color(.separator))
+                        .fill(Theme.Colors.separator)
                         .frame(width: 0.5)
                 }
             }
@@ -258,22 +316,27 @@ struct CalendarView: View {
 
     private func weekDayCellView(for day: CalendarDay) -> some View {
         let date = day.date
-        let mu = manUnit(for: date)
+        let items = dayEntries(for: date)
+        let mu = items.reduce(0) { $0 + $1.manUnit }
         let isSelected = selectedDate.map { calendar.isDate($0, inSameDayAs: date) } ?? false
 
-        return VStack(alignment: .leading, spacing: 4) {
-            dayNumber(for: day, isSelected: isSelected)
+        return VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+            HStack(spacing: 3) {
+                dayNumber(for: day, isSelected: isSelected)
+                siteDots(for: items)
+            }
 
-            Text(mu > 0 ? Format.manUnit(mu) : " ")
-                .font(.caption2.bold())
-                .foregroundStyle(mu > 0 ? .white : .clear)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 2)
-                .background(mu > 0 ? Color.manUnit(mu) : .clear, in: RoundedRectangle(cornerRadius: 4))
+            if items.isEmpty {
+                Text(" ")
+                    .font(Theme.Fonts.badge)
+                    .padding(.vertical, 2)
+            } else {
+                ManUnitBadge(value: mu, compact: true)
+            }
         }
-        .padding(4)
+        .padding(Theme.Spacing.xs)
         .frame(maxWidth: .infinity, alignment: .topLeading)
-        .background { if isSelected { Color.accentColor.opacity(0.08) } }
+        .background { if isSelected { Theme.Colors.brandSoft } }
         .contentShape(Rectangle())
         .onTapGesture {
             withAnimation(.easeInOut(duration: 0.25)) {
@@ -283,13 +346,13 @@ struct CalendarView: View {
                 selectedDate = date
             }
         }
+        .contextMenu { quickAddMenu(for: date) }
     }
 
     // MARK: - 월간 그리드
-    private func monthGrid(height: CGFloat) -> some View {
+    private func monthGrid(rowHeight: CGFloat) -> some View {
         let weeks = monthWeeks
         let weekCount = weeks.count
-        let rowHeight = weekCount == 0 ? 0 : height / CGFloat(weekCount)
 
         return ZStack {
             Canvas { ctx, size in
@@ -301,12 +364,12 @@ struct CalendarView: View {
                     path.move(to: CGPoint(x: x, y: 0))
                     path.addLine(to: CGPoint(x: x, y: size.height))
                 }
-                for i in 1...max(weekCount, 1) {
+                for i in 1..<max(weekCount, 1) {
                     let y = rowH * CGFloat(i)
                     path.move(to: CGPoint(x: 0, y: y))
                     path.addLine(to: CGPoint(x: size.width, y: y))
                 }
-                ctx.stroke(path, with: .color(Color(.separator)), lineWidth: 0.5)
+                ctx.stroke(path, with: .color(Theme.Colors.separator), lineWidth: 0.5)
             }
 
             VStack(spacing: 0) {
@@ -328,50 +391,45 @@ struct CalendarView: View {
         let isSelected = selectedDate.map { calendar.isDate($0, inSameDayAs: date) } ?? false
         let holidayName = HolidayService.holidayName(for: date)
         let hasUnpaid = dayItems.contains { !$0.isPaid }
-        let hasTag = dayItems.contains { $0.workTag != nil }
 
         return VStack(alignment: .leading, spacing: 2) {
-            dayNumber(for: day, isSelected: isSelected)
+            HStack(spacing: 3) {
+                dayNumber(for: day, isSelected: isSelected)
+                if day.isCurrentMonth {
+                    siteDots(for: dayItems)
+                }
+            }
 
             if day.isCurrentMonth {
                 if let holidayName {
                     Text(holidayName)
                         .font(.system(size: 9))
-                        .foregroundStyle(.red)
+                        .foregroundStyle(Theme.Colors.holiday)
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
                 }
 
                 Spacer(minLength: 0)
 
-                if !dayItems.isEmpty && (hasTag || hasUnpaid) {
-                    HStack(spacing: 3) {
-                        if hasTag {
-                            Circle().fill(.orange).frame(width: 5, height: 5)
-                        }
-                        if hasUnpaid {
-                            Circle().strokeBorder(.secondary, lineWidth: 1).frame(width: 5, height: 5)
-                        }
-                    }
-                    .padding(.bottom, 1)
-                }
-
                 if !dayItems.isEmpty {
-                    Text(Format.manUnit(mu))
-                        .font(.caption2.bold())
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 2)
-                        .background(Color.manUnit(mu), in: RoundedRectangle(cornerRadius: 4))
+                    ManUnitBadge(value: mu, compact: true)
+                        .overlay(alignment: .topTrailing) {
+                            if hasUnpaid {
+                                Circle()
+                                    .fill(Theme.Colors.warning)
+                                    .frame(width: 6, height: 6)
+                                    .offset(x: 2, y: -2)
+                            }
+                        }
                 }
             } else {
                 Spacer(minLength: 0)
             }
         }
-        .padding(4)
+        .padding(Theme.Spacing.xs)
         .frame(maxWidth: .infinity, alignment: .leading)
         .frame(height: height)
-        .background { if isSelected { Color.accentColor.opacity(0.08) } }
+        .background { if isSelected { Theme.Colors.brandSoft } }
         .contentShape(Rectangle())
         .onTapGesture {
             guard day.isCurrentMonth else { return }
@@ -394,21 +452,34 @@ struct CalendarView: View {
         let isToday = calendar.isDateInToday(date)
         let dayType = HolidayService.dayType(for: date)
         return Text("\(calendar.component(.day, from: date))")
-            .font(.footnote.weight(isToday ? .bold : .regular))
+            .font(Theme.Fonts.dayNumber.weight(isToday ? .bold : .regular))
             .foregroundStyle(
-                !day.isCurrentMonth ? Color(.tertiaryLabel) :
-                isSelected ? .white :
-                dayType == .holiday ? .red :
-                dayType == .saturday ? .blue : .primary
+                !day.isCurrentMonth ? Theme.Colors.textTertiary :
+                isSelected ? Theme.Colors.onBrand :
+                dayType == .holiday ? Theme.Colors.holiday :
+                dayType == .saturday ? Theme.Colors.saturday : Theme.Colors.textPrimary
             )
             .frame(width: 24, height: 24)
             .background {
                 if isSelected {
-                    Circle().fill(Color.accentColor)
+                    Circle().fill(Theme.Colors.brand)
                 } else if isToday {
-                    Circle().strokeBorder(Color.accentColor, lineWidth: 1.5)
+                    Circle().strokeBorder(Theme.Colors.brand, lineWidth: 1.5)
                 }
             }
+    }
+
+    /// 그날 일한 현장 색 점 (최대 3개)
+    @ViewBuilder
+    private func siteDots(for items: [WorkEntry]) -> some View {
+        let indices = Array(Set(items.compactMap { $0.site?.colorIndex })).sorted().prefix(3)
+        if !indices.isEmpty {
+            HStack(spacing: 2) {
+                ForEach(Array(indices), id: \.self) { index in
+                    SiteDot(colorIndex: index, size: 5)
+                }
+            }
+        }
     }
 
     // MARK: - 길게 눌러 빠른 기록
@@ -465,74 +536,54 @@ struct CalendarView: View {
         let monthManUnit = monthEntries.reduce(0) { $0 + $1.manUnit }
         let monthNet = monthEntries.reduce(0) { $0 + $1.netAmount }
 
-        return HStack {
-            statColumn(title: "이번 주", manUnit: weekManUnit, net: weekNet)
+        return HStack(spacing: Theme.Spacing.md) {
+            StatTile(title: "이번 주", value: "\(Format.manUnit(weekManUnit))공수", detail: Format.won(weekNet))
             Divider()
-            statColumn(title: "이번 달", manUnit: monthManUnit, net: monthNet)
+            StatTile(title: "이번 달", value: "\(Format.manUnit(monthManUnit))공수", detail: Format.won(monthNet))
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, Theme.Spacing.xs)
     }
 
-    private func statColumn(title: String, manUnit: Double, net: Int) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(title)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Text("\(Format.manUnit(manUnit))공수")
-                .font(.headline.bold())
-                .foregroundStyle(Color.accentColor)
-            Text(Format.won(net))
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .monospacedDigit()
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    // MARK: - 월간 통계
-    private var monthSummaryContent: some View {
-        let summary = MonthlySummary(month: currentMonth, entries: currentMonthEntries)
+    // MARK: - 월간 요약 카드
+    private func monthSummaryCard(_ summary: MonthlySummary) -> some View {
         let paidCount = summary.entries.count - summary.unpaid.count
         let totalCount = summary.entries.count
         let manUnitText = "\(Format.manUnit(summary.manUnit))공수 · \(summary.workDays)일"
+        let shareText = SettlementExporter.text(for: summary)
 
         return VStack(spacing: 0) {
-            summaryRow(label: "총 공수", value: manUnitText, valueColor: .accentColor, bold: true)
-            Divider().padding(.leading)
-            summaryRow(label: "일당 합계", value: Format.won(summary.taxable))
-            if summary.allowance > 0 {
-                Divider().padding(.leading)
-                summaryRow(label: "수당 합계", value: "+\(Format.won(summary.allowance))")
+            HStack {
+                Text("월간 요약")
+                    .font(Theme.Fonts.headline)
+                Spacer()
+                ShareLink(item: shareText) {
+                    Label("공유", systemImage: "square.and.arrow.up")
+                        .font(Theme.Fonts.label)
+                }
             }
-            Divider().padding(.leading)
-            summaryRow(label: "세금", value: "-\(Format.won(summary.tax))", valueColor: summary.tax > 0 ? .red : .secondary)
-            Divider().padding(.leading)
-            summaryRow(label: "실수령액", value: Format.won(summary.net), valueColor: .accentColor, bold: true)
-            Divider().padding(.leading)
-            summaryRow(label: "입금 확인", value: "\(paidCount)/\(totalCount)건")
-            if summary.unpaidAmount > 0 {
-                Divider().padding(.leading)
-                summaryRow(label: "미입금", value: Format.won(summary.unpaidAmount), valueColor: .red, bold: true)
-            }
-        }
-        .background(Color(.systemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .padding([.horizontal, .bottom])
-    }
+            .padding(.horizontal, Theme.Spacing.lg)
+            .padding(.vertical, Theme.Spacing.md)
 
-    private func summaryRow(label: String, value: String, valueColor: Color = .secondary, bold: Bool = false) -> some View {
-        HStack {
-            Text(label)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            Spacer()
-            Text(value)
-                .font(bold ? .subheadline.bold() : .subheadline)
-                .foregroundStyle(valueColor)
-                .monospacedDigit()
+            Divider().padding(.leading, Theme.Spacing.lg)
+            KeyValueRow(label: "총 공수", value: manUnitText, valueColor: Theme.Colors.brand, bold: true)
+            Divider().padding(.leading, Theme.Spacing.lg)
+            KeyValueRow(label: "일당 합계", value: Format.won(summary.taxable))
+            if summary.allowance > 0 {
+                Divider().padding(.leading, Theme.Spacing.lg)
+                KeyValueRow(label: "수당 합계", value: "+\(Format.won(summary.allowance))")
+            }
+            Divider().padding(.leading, Theme.Spacing.lg)
+            KeyValueRow(label: "세금", value: "-\(Format.won(summary.tax))", valueColor: summary.tax > 0 ? Theme.Colors.danger : Theme.Colors.textSecondary)
+            Divider().padding(.leading, Theme.Spacing.lg)
+            KeyValueRow(label: "실수령액", value: Format.won(summary.net), valueColor: Theme.Colors.brand, bold: true)
+            Divider().padding(.leading, Theme.Spacing.lg)
+            KeyValueRow(label: "입금 확인", value: "\(paidCount)/\(totalCount)건")
+            if summary.unpaidAmount > 0 {
+                Divider().padding(.leading, Theme.Spacing.lg)
+                KeyValueRow(label: "미입금", value: Format.won(summary.unpaidAmount), valueColor: Theme.Colors.danger, bold: true)
+            }
         }
-        .padding(.horizontal)
-        .padding(.vertical, 12)
+        .background(Theme.Colors.surface, in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
     }
 
     // MARK: - 달 이동
@@ -625,10 +676,6 @@ struct CalendarView: View {
             .sorted { $0.createdAt < $1.createdAt }
     }
 
-    private func manUnit(for date: Date) -> Double {
-        dayEntries(for: date).reduce(0) { $0 + $1.manUnit }
-    }
-
     private func accessibilityText(for date: Date, manUnit: Double, holiday: String?) -> String {
         var parts = [Format.dayTitle.string(from: date)]
         if let holiday { parts.append(holiday) }
@@ -639,61 +686,6 @@ struct CalendarView: View {
     private func deleteEntries(at offsets: IndexSet, from todayEntries: [WorkEntry]) {
         offsets.map { todayEntries[$0] }.forEach { context.delete($0) }
         try? context.save()
-    }
-}
-
-// MARK: - 기록 행 (달력·현장·정산에서 공용)
-struct EntryRow: View {
-    let entry: WorkEntry
-    var showsDate: Bool = true
-    var showsSite: Bool = true
-
-    var body: some View {
-        HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 6) {
-                    if showsDate {
-                        Text(Format.shortDay.string(from: entry.date))
-                            .font(.subheadline.bold())
-                    }
-                    if showsSite {
-                        Text(entry.site?.name ?? "현장 미지정")
-                            .font(showsDate ? .subheadline : .subheadline.bold())
-                            .lineLimit(1)
-                    }
-                    Text(entry.weatherCondition.emoji)
-                        .font(.caption)
-                    if let tag = entry.workTag {
-                        Text(tag.rawValue)
-                            .font(.caption2)
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(.orange, in: Capsule())
-                    }
-                }
-                if !entry.memo.isEmpty {
-                    Text(entry.memo)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                }
-            }
-            Spacer()
-            VStack(alignment: .trailing, spacing: 2) {
-                Text("\(Format.manUnit(entry.manUnit))공수")
-                    .font(.subheadline.bold())
-                    .foregroundStyle(Color.manUnit(entry.manUnit))
-                Text(Format.won(entry.netAmount))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .monospacedDigit()
-                Text(entry.isPaid ? "입금완료" : "미입금")
-                    .font(.caption2)
-                    .foregroundStyle(entry.isPaid ? .green : .orange)
-            }
-        }
-        .padding(.vertical, 4)
     }
 }
 

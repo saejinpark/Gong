@@ -9,6 +9,7 @@
 ## 기능
 
 **공수 탭 (달력)**
+- 상단에 이번 달 실수령액 카드, 오늘 기록이 없으면 "오늘 1공수 기록" 버튼
 - 날짜를 누르면 그 주가 펼쳐지고 그날 기록을 바로 추가·수정
 - 날짜를 길게 누르면 최근 현장으로 1공수 즉시 기록
 - 좌우로 밀어 달 이동, 오늘로 돌아가기 버튼
@@ -29,7 +30,7 @@
 - 10원 미만 절사
 
 **현장 탭**
-- 현장별 단가, 기본 식대, 세금 방식, 위치, 메모, 진행중/종료
+- 현장별 단가, 기본 식대, 세금 방식, 구분 색, 위치, 메모, 진행중/종료
 - 이번 달 공수, 누적 공수·실수령, 미입금 금액, 월별 기록
 
 **정산 탭**
@@ -48,6 +49,9 @@
 Gong/
 ├── GongApp.swift            앱 진입점, ModelContainer, -seedDemo 처리
 ├── ContentView.swift        탭 구성
+├── Design/
+│   ├── Theme.swift          색·글꼴·간격 토큰
+│   └── Components.swift     HeroCard, BigActionButton, EntryRow 등 공용 컴포넌트
 ├── Model/                   Site, WorkEntry(SwiftData), TaxMode, DayType, WeatherCondition, WorkTag
 ├── Service/
 │   ├── PayCalculator.swift  일당·세금·실수령 계산
@@ -83,6 +87,10 @@ xcrun simctl launch booted dev.geppetto.Gong -seedDemo
 ### 공휴일 갱신
 
 `HolidayService.holidays`에 연도별 날짜를 추가하고 `lastSupportedYear`를 올립니다. 설·추석·부처님오신날·대체공휴일은 매년 인사혁신처 발표를 확인하세요.
+
+## 디자인 시스템
+
+[docs/DesignSystem.md](docs/DesignSystem.md)에 원칙, 색·글꼴 토큰, 컴포넌트 목록과 화면 구성 규칙이 있습니다. 화면 코드는 `Theme`와 `Components`만 사용합니다.
 
 ## 스토어 제출
 

@@ -86,50 +86,43 @@ struct SettlementView: View {
                         description: Text("선택한 달의 공수 기록이 없어요")
                     )
                 } else {
-                    // MARK: - 공수 요약
-                    Section("공수 요약") {
-                        LabeledContent("근무일수") {
-                            Text("\(summary.workDays)일")
-                                .foregroundStyle(.secondary)
-                        }
-                        LabeledContent("총 공수") {
-                            Text("\(Format.manUnit(summary.manUnit))공수")
-                                .foregroundStyle(Color.accentColor)
-                                .fontWeight(.semibold)
-                        }
-                        if summary.workDays > 0 {
-                            LabeledContent("하루 평균 실수령") {
-                                Text(Format.won(summary.net / summary.workDays))
-                                    .foregroundStyle(.secondary)
-                                    .monospacedDigit()
+                    // MARK: - 실수령 히어로
+                    Section {
+                        HeroCard(
+                            title: "\(calendar.component(.month, from: selectedMonth))월 실수령액",
+                            amount: summary.net,
+                            caption: "\(Format.manUnit(summary.manUnit))공수 · \(summary.workDays)일 근무 · 하루 평균 \(Format.won(summary.workDays > 0 ? summary.net / summary.workDays : 0))"
+                        ) {
+                            HStack(spacing: Theme.Spacing.sm) {
+                                TagChip(text: "일당 \(summary.taxable.formatted())원", tint: .white.opacity(0.25))
+                                if summary.allowance > 0 {
+                                    TagChip(text: "수당 +\(summary.allowance.formatted())원", tint: .white.opacity(0.25))
+                                }
+                                if summary.tax > 0 {
+                                    TagChip(text: "세금 -\(summary.tax.formatted())원", tint: .white.opacity(0.25))
+                                }
                             }
+                            .padding(.top, Theme.Spacing.xs)
                         }
+                        .listRowInsets(EdgeInsets())
+                        .listRowBackground(Color.clear)
                     }
 
                     // MARK: - 금액 정산
                     Section("금액 정산") {
                         LabeledContent("일당 합계") {
-                            Text(Format.won(summary.taxable))
-                                .foregroundStyle(.secondary)
-                                .monospacedDigit()
+                            MoneyText(value: summary.taxable)
                         }
                         if summary.allowance > 0 {
                             LabeledContent("수당 합계") {
-                                Text("+\(Format.won(summary.allowance))")
-                                    .foregroundStyle(.secondary)
-                                    .monospacedDigit()
+                                MoneyText(value: summary.allowance, style: .positive)
                             }
                         }
                         LabeledContent("세금") {
-                            Text("-\(Format.won(summary.tax))")
-                                .foregroundStyle(summary.tax > 0 ? .red : .secondary)
-                                .monospacedDigit()
+                            MoneyText(value: summary.tax, style: .negative)
                         }
                         LabeledContent("실수령액") {
-                            Text(Format.won(summary.net))
-                                .font(.title3.bold())
-                                .foregroundStyle(Color.accentColor)
-                                .monospacedDigit()
+                            MoneyText(value: summary.net, style: .emphasis, font: Theme.Fonts.amount)
                         }
                     }
 

@@ -16,6 +16,8 @@ struct SiteFormView: View {
     @AppStorage(AppDefaults.defaultWageKey) private var appDefaultWage: Int = 0
     @AppStorage(AppDefaults.defaultMealKey) private var appDefaultMeal: Int = 0
 
+    @Query private var allSites: [Site]
+
     var editingSite: Site? = nil
     /// 저장 직후 호출 — 공수 입력 시트에서 "현장 빠른 등록" 후 바로 선택되게
     var onSave: ((Site) -> Void)? = nil
@@ -24,6 +26,7 @@ struct SiteFormView: View {
     @State private var defaultWage: Int = 0
     @State private var defaultMeal: Int = 0
     @State private var taxMode: TaxMode = .withholding
+    @State private var colorIndex: Int = 0
     @State private var startDate: Date = .now
     @State private var location: String = ""
     @State private var memo: String = ""
@@ -56,6 +59,8 @@ struct SiteFormView: View {
                             .onSubmit { focusedField = .wage }
                     }
 
+                    colorPicker
+
                     DatePicker(
                         "시작일",
                         selection: $startDate,
@@ -78,7 +83,7 @@ struct SiteFormView: View {
                                 .multilineTextAlignment(.trailing)
                                 .focused($focusedField, equals: .wage)
                             Text("원")
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Theme.Colors.textSecondary)
                         }
                     }
                     LabeledContent("기본 식대") {
@@ -88,7 +93,7 @@ struct SiteFormView: View {
                                 .multilineTextAlignment(.trailing)
                                 .focused($focusedField, equals: .meal)
                             Text("원")
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Theme.Colors.textSecondary)
                         }
                     }
                     Picker("세금 방식", selection: $taxMode) {
@@ -103,7 +108,7 @@ struct SiteFormView: View {
                         Text(taxMode.detail)
                         if defaultWage > 0 {
                             Text("22일 기준 월 \(Format.won(monthlyEstimate.gross)) → 실수령 약 \(Format.won(monthlyEstimate.net))")
-                                .foregroundStyle(Color.accentColor)
+                                .foregroundStyle(Theme.Colors.brand)
                         }
                     }
                 }
@@ -119,7 +124,7 @@ struct SiteFormView: View {
                 if editingSite != nil {
                     Section {
                         Toggle("진행중", isOn: $isActive)
-                            .tint(.accentColor)
+                            .tint(Theme.Colors.brand)
                     } footer: {
                         Text("끝난 현장은 꺼 두면 공수 입력 목록에서 사라져요. 기록은 그대로 남아요.")
                     }
@@ -136,7 +141,7 @@ struct SiteFormView: View {
                         save()
                     }
                     .fontWeight(.semibold)
-                    .tint(.accentColor)
+                    .tint(Theme.Colors.brand)
                     .disabled(!isValid)
                 }
                 ToolbarItem(placement: .keyboard) {
@@ -148,6 +153,37 @@ struct SiteFormView: View {
         }
     }
 
+    // MARK: - 색 선택
+    private var colorPicker: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+            Text("구분 색")
+            HStack(spacing: Theme.Spacing.sm) {
+                ForEach(Theme.Colors.sitePalette.indices, id: \.self) { index in
+                    Button {
+                        colorIndex = index
+                    } label: {
+                        Circle()
+                            .fill(Theme.Colors.site(index))
+                            .frame(width: 30, height: 30)
+                            .overlay {
+                                if colorIndex == index {
+                                    Image(systemName: "checkmark")
+                                        .font(.caption.bold())
+                                        .foregroundStyle(.white)
+                                }
+                            }
+                            .frame(maxWidth: .infinity, minHeight: Theme.minTapTarget)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("색 \(index + 1)")
+                    .accessibilityAddTraits(colorIndex == index ? .isSelected : [])
+                }
+            }
+        }
+        .padding(.vertical, Theme.Spacing.xs)
+    }
+
     // MARK: - 초기값 로드
     private func loadInitialValues() {
         if let site = editingSite {
@@ -155,6 +191,7 @@ struct SiteFormView: View {
             defaultWage = site.defaultWage
             defaultMeal = site.defaultMealAllowance
             taxMode = site.taxMode
+            colorIndex = site.colorIndex
             startDate = site.startDate
             location = site.location
             memo = site.memo
@@ -163,6 +200,9 @@ struct SiteFormView: View {
             taxMode = TaxMode(rawValue: defaultTaxModeRaw) ?? .withholding
             defaultWage = appDefaultWage
             defaultMeal = appDefaultMeal
+            // 아직 안 쓰인 색을 먼저 제안
+            let used = Set(allSites.map { $0.colorIndex })
+            colorIndex = Theme.Colors.sitePalette.indices.first { !used.contains($0) } ?? (allSites.count % Theme.Colors.sitePalette.count)
             if name.isEmpty {
                 focusedField = .name
             }
@@ -178,6 +218,7 @@ struct SiteFormView: View {
             site.defaultWage = defaultWage
             site.defaultMealAllowance = defaultMeal
             site.taxMode = taxMode
+            site.colorIndex = colorIndex
             site.startDate = startDate
             site.location = location
             site.memo = memo
@@ -191,7 +232,8 @@ struct SiteFormView: View {
                 location: location,
                 memo: memo,
                 taxMode: taxMode,
-                defaultMealAllowance: defaultMeal
+                defaultMealAllowance: defaultMeal,
+                colorIndex: colorIndex
             )
             context.insert(site)
             savedSite = site

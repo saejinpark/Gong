@@ -127,6 +127,7 @@ struct SiteRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
+                SiteDot(colorIndex: site.colorIndex, size: 10)
                 Text(site.name)
                     .font(.headline)
                 if !site.isActive {
@@ -162,17 +163,12 @@ struct SiteRow: View {
                     .font(.subheadline)
                     .foregroundStyle(Color.accentColor)
                     .fontWeight(.semibold)
-                Text(site.taxMode.shortTitle)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(Color(.systemGray5), in: Capsule())
+                TagChip(text: site.taxMode.shortTitle, tint: Theme.Colors.textSecondary, filled: false)
                 Spacer()
                 if unpaidAmount > 0 {
                     Text("미입금 \(Format.won(unpaidAmount))")
                         .font(.caption)
-                        .foregroundStyle(.red)
+                        .foregroundStyle(Theme.Colors.warning)
                 }
             }
         }

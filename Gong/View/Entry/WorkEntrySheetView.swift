@@ -247,10 +247,7 @@ struct WorkEntrySheetView: View {
                 }
             }
             LabeledContent("실수령액") {
-                Text(Format.won(netAmount))
-                    .font(.title3.bold())
-                    .foregroundStyle(Color.accentColor)
-                    .monospacedDigit()
+                MoneyText(value: netAmount, style: .emphasis, font: Theme.Fonts.amountLarge)
             }
         }
     }
@@ -342,30 +339,16 @@ struct WorkEntrySheetView: View {
         .padding(.vertical, 4)
     }
 
-    @ViewBuilder
     private func presetButton(preset: (label: String, value: Double)) -> some View {
-        let isSelected = abs(manUnit - preset.value) < 0.001
-        let bg = isSelected ? Color.manUnit(preset.value) : Color(.systemGray6)
-        let fg: Color = isSelected ? .white : .primary
-
-        Button {
+        ChoiceButton(
+            title: Format.manUnit(preset.value),
+            subtitle: preset.label,
+            isSelected: abs(manUnit - preset.value) < 0.001,
+            tint: Theme.Colors.manUnit(preset.value)
+        ) {
             manUnit = preset.value
             focusedField = nil
-        } label: {
-            VStack(spacing: 2) {
-                Text(Format.manUnit(preset.value))
-                    .font(.subheadline.bold())
-                Text(preset.label)
-                    .font(.caption2)
-            }
-            .lineLimit(1)
-            .minimumScaleFactor(0.7)
-            .foregroundStyle(fg)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 8)
-            .background(bg, in: RoundedRectangle(cornerRadius: 8))
         }
-        .buttonStyle(.plain)
         .accessibilityLabel("\(preset.label) \(Format.manUnit(preset.value))공수")
     }
 
