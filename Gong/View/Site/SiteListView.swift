@@ -113,7 +113,17 @@ struct SiteListView: View {
 // MARK: - SiteRow
 struct SiteRow: View {
     let site: Site
-    
+
+    private var thisMonthManUnit: Double {
+        site.entries
+            .filter { Calendar.current.isDate($0.date, equalTo: .now, toGranularity: .month) }
+            .reduce(0) { $0 + $1.manUnit }
+    }
+
+    private var unpaidAmount: Int {
+        site.entries.filter { !$0.isPaid }.reduce(0) { $0 + $1.netAmount }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
@@ -127,9 +137,15 @@ struct SiteRow: View {
                         .padding(.vertical, 2)
                         .background(.secondary, in: Capsule())
                 }
+                Spacer()
+                if site.isActive && thisMonthManUnit > 0 {
+                    Text("이번 달 \(Format.manUnit(thisMonthManUnit))공수")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
             HStack(spacing: 8) {
-                Text(site.startDate.formatted(date: .abbreviated, time: .omitted))
+                Text(Format.fullDate.string(from: site.startDate))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 if !site.location.isEmpty {
@@ -141,10 +157,24 @@ struct SiteRow: View {
                         .lineLimit(1)
                 }
             }
-            Text("\(site.defaultWage.formatted())원")
-                .font(.subheadline)
-                .foregroundStyle(Color.accentColor)
-                .fontWeight(.semibold)
+            HStack {
+                Text(Format.won(site.defaultWage))
+                    .font(.subheadline)
+                    .foregroundStyle(Color.accentColor)
+                    .fontWeight(.semibold)
+                Text(site.taxMode.shortTitle)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Color(.systemGray5), in: Capsule())
+                Spacer()
+                if unpaidAmount > 0 {
+                    Text("미입금 \(Format.won(unpaidAmount))")
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
+            }
         }
         .padding(.vertical, 4)
     }

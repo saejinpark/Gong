@@ -11,43 +11,58 @@ import SwiftData
 struct SiteDetailView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
-    
+
     let site: Site
-    
+
     @State private var isShowingForm: Bool = false
     @State private var isShowingDeleteAlert: Bool = false
-    @State private var isShowingSheet: Bool = false
     @State private var editingEntry: WorkEntry? = nil
-    
+
     @Query private var allSites: [Site]
-    
+
+    private let calendar = Calendar.current
+
     private var sortedEntries: [WorkEntry] {
-        site.entries.sorted { $0.date > $1.date }
+        site.entries.sorted { ($0.date, $0.createdAt) > ($1.date, $1.createdAt) }
     }
-    
-    private var totalManUnit: Double {
-        site.entries.reduce(0) { $0 + $1.manUnit }
+
+    private var thisMonthEntries: [WorkEntry] {
+        site.entries.filter { calendar.isDate($0.date, equalTo: .now, toGranularity: .month) }
     }
-    
-    private var totalNetAmount: Int {
-        site.entries.reduce(0) { $0 + $1.netAmount }
+
+    private var totalManUnit: Double { site.entries.reduce(0) { $0 + $1.manUnit } }
+    private var totalNetAmount: Int { site.entries.reduce(0) { $0 + $1.netAmount } }
+    private var unpaid: [WorkEntry] { site.entries.filter { !$0.isPaid } }
+    private var unpaidAmount: Int { unpaid.reduce(0) { $0 + $1.netAmount } }
+
+    /// 월별로 묶은 기록 (최근 달 먼저)
+    private var entriesByMonth: [(month: Date, entries: [WorkEntry])] {
+        Dictionary(grouping: sortedEntries) { calendar.startOfMonth(for: $0.date) }
+            .map { (month: $0.key, entries: $0.value) }
+            .sorted { $0.month > $1.month }
     }
-    
-    private var canDelete: Bool {
-        site.entries.isEmpty
-    }
-    
+
     var body: some View {
         List {
             // MARK: - 현장 정보
             Section("현장 정보") {
                 LabeledContent("기본 단가") {
-                    Text("\(site.defaultWage.formatted())원")
+                    Text(Format.won(site.defaultWage))
                         .foregroundStyle(Color.accentColor)
                         .fontWeight(.semibold)
                 }
+                LabeledContent("세금 방식") {
+                    Text(site.taxMode.title)
+                        .foregroundStyle(.secondary)
+                }
+                if site.defaultMealAllowance > 0 {
+                    LabeledContent("기본 식대") {
+                        Text(Format.won(site.defaultMealAllowance))
+                            .foregroundStyle(.secondary)
+                    }
+                }
                 LabeledContent("시작일") {
-                    Text(site.startDate.formatted(date: .abbreviated, time: .omitted))
+                    Text(Format.fullDate.string(from: site.startDate))
                         .foregroundStyle(.secondary)
                 }
                 if !site.location.isEmpty {
@@ -69,49 +84,78 @@ struct SiteDetailView: View {
                         .fontWeight(.medium)
                 }
             }
-            
-            // MARK: - 누적 집계
-            Section("누적 집계") {
-                LabeledContent("총 공수") {
-                    Text("\(formatManUnit(totalManUnit))공수")
-                        .foregroundStyle(Color.accentColor)
-                        .fontWeight(.semibold)
-                }
-                LabeledContent("총 실수령액") {
-                    Text("\(totalNetAmount.formatted())원")
-                        .foregroundStyle(Color.accentColor)
-                        .fontWeight(.semibold)
-                }
-                LabeledContent("근무일수") {
-                    Text("\(site.entries.count)일")
+
+            // MARK: - 집계
+            Section("집계") {
+                LabeledContent("이번 달") {
+                    Text("\(Format.manUnit(thisMonthEntries.reduce(0) { $0 + $1.manUnit }))공수 · \(Format.won(thisMonthEntries.reduce(0) { $0 + $1.netAmount }))")
                         .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                }
+                LabeledContent("누적 공수") {
+                    Text("\(Format.manUnit(totalManUnit))공수 · \(site.entries.count)일")
+                        .foregroundStyle(Color.accentColor)
+                        .fontWeight(.semibold)
+                }
+                LabeledContent("누적 실수령액") {
+                    Text(Format.won(totalNetAmount))
+                        .foregroundStyle(Color.accentColor)
+                        .fontWeight(.semibold)
+                        .monospacedDigit()
+                }
+                if !unpaid.isEmpty {
+                    LabeledContent("미입금") {
+                        Text("\(unpaid.count)건 · \(Format.won(unpaidAmount))")
+                            .foregroundStyle(.red)
+                            .fontWeight(.semibold)
+                            .monospacedDigit()
+                    }
                 }
             }
-            
+
             // MARK: - 공수 기록
-            Section("공수 기록") {
-                if sortedEntries.isEmpty {
+            if sortedEntries.isEmpty {
+                Section("공수 기록") {
                     ContentUnavailableView(
                         "기록 없음",
                         systemImage: "doc.text",
                         description: Text("이 현장의 공수 기록이 없어요")
                     )
-                } else {
-                    ForEach(sortedEntries) { entry in
-                        entryRow(entry)
-                            .onTapGesture {
-                                editingEntry = entry
-                                isShowingSheet = true
-                            }
-                    }
-                    .onDelete { offsets in
-                        deleteEntries(at: offsets)
+                }
+            } else {
+                ForEach(entriesByMonth, id: \.month) { group in
+                    Section {
+                        ForEach(group.entries) { entry in
+                            EntryRow(entry: entry, showsSite: false)
+                                .contentShape(Rectangle())
+                                .onTapGesture { editingEntry = entry }
+                                .swipeActions(edge: .leading) {
+                                    Button {
+                                        entry.isPaid.toggle()
+                                        try? context.save()
+                                    } label: {
+                                        Label(entry.isPaid ? "미입금으로" : "입금 완료", systemImage: entry.isPaid ? "arrow.uturn.backward" : "checkmark.circle")
+                                    }
+                                    .tint(entry.isPaid ? .gray : .green)
+                                }
+                        }
+                        .onDelete { offsets in
+                            offsets.map { group.entries[$0] }.forEach { context.delete($0) }
+                            try? context.save()
+                        }
+                    } header: {
+                        HStack {
+                            Text(Format.monthTitle.string(from: group.month))
+                            Spacer()
+                            Text("\(Format.manUnit(group.entries.reduce(0) { $0 + $1.manUnit }))공수 · \(Format.won(group.entries.reduce(0) { $0 + $1.netAmount }))")
+                                .monospacedDigit()
+                        }
                     }
                 }
             }
-            
+
             // MARK: - 삭제
-            if canDelete {
+            if site.entries.isEmpty {
                 Section {
                     Button(role: .destructive) {
                         isShowingDeleteAlert = true
@@ -135,14 +179,12 @@ struct SiteDetailView: View {
         .sheet(isPresented: $isShowingForm) {
             SiteFormView(editingSite: site)
         }
-        .sheet(isPresented: $isShowingSheet) {
-            if let entry = editingEntry {
-                WorkEntrySheetView(
-                    date: entry.date,
-                    sites: allSites,
-                    editingEntry: entry
-                )
-            }
+        .sheet(item: $editingEntry) { entry in
+            WorkEntrySheetView(
+                date: entry.date,
+                sites: allSites,
+                editingEntry: entry
+            )
         }
         .alert("현장을 삭제할까요?", isPresented: $isShowingDeleteAlert) {
             Button("삭제", role: .destructive) { deleteSite() }
@@ -151,67 +193,7 @@ struct SiteDetailView: View {
             Text("삭제된 현장은 복구할 수 없어요")
         }
     }
-    
-    // MARK: - 기록 Row
-    private func entryRow(_ entry: WorkEntry) -> some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Text(entry.date.formatted(date: .abbreviated, time: .omitted))
-                        .font(.subheadline.bold())
-                    Text(entry.weatherCondition.emoji)
-                    if let tag = entry.workTag {
-                        Text(tag.rawValue)
-                            .font(.caption)
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(.orange, in: Capsule())
-                    }
-                }
-                if !entry.memo.isEmpty {
-                    Text(entry.memo)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            Spacer()
-            VStack(alignment: .trailing, spacing: 2) {
-                Text("\(formatManUnit(entry.manUnit))공수")
-                    .font(.subheadline.bold())
-                    .foregroundStyle(manUnitColor(entry.manUnit))
-                Text("\(entry.netAmount.formatted())원")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Text(entry.isPaid ? "입금완료" : "미입금")
-                    .font(.caption)
-                    .foregroundStyle(entry.isPaid ? .green : .secondary)
-            }
-        }
-        .padding(.vertical, 4)
-    }
-    
-    // MARK: - 헬퍼
-    private func formatManUnit(_ value: Double) -> String {
-        String(format: "%g", value)
-    }
-    
-    private func manUnitColor(_ value: Double) -> Color {
-        switch value {
-        case 0..<0.1: return .gray
-        case 0.1..<1: return .gray.opacity(0.7)
-        case 1..<1.5: return .green
-        case 1.5..<2: return .blue
-        default:      return .red
-        }
-    }
-    
-    // MARK: - 삭제
-    private func deleteEntries(at offsets: IndexSet) {
-        offsets.map { sortedEntries[$0] }.forEach { context.delete($0) }
-        try? context.save()
-    }
-    
+
     private func deleteSite() {
         context.delete(site)
         try? context.save()
@@ -221,7 +203,7 @@ struct SiteDetailView: View {
 
 #Preview {
     NavigationStack {
-        SiteDetailView(site: Site(name: "평택삼성 1공구", defaultWage: 180000))
+        SiteDetailView(site: Site(name: "평택 1공구", defaultWage: 180000))
     }
     .modelContainer(for: [Site.self, WorkEntry.self], inMemory: true)
 }

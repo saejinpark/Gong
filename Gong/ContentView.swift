@@ -15,15 +15,20 @@ struct ContentView: View {
                 .tabItem {
                     Label("공수", systemImage: "calendar")
                 }
-            
+
             SiteListView()
                 .tabItem {
                     Label("현장", systemImage: "building.2")
                 }
-            
+
             SettlementView()
                 .tabItem {
                     Label("정산", systemImage: "wonsign")
+                }
+
+            SettingsView()
+                .tabItem {
+                    Label("설정", systemImage: "gearshape")
                 }
         }
         .tint(.accentColor)

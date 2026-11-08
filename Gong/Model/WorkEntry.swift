@@ -22,7 +22,11 @@ class WorkEntry {
     var memo: String
     var isPaid: Bool
     var site: Site?
-    
+    /// 세금 공제 방식 (기존 데이터는 기본값 = 일용직 원천징수)
+    var taxModeRaw: String = TaxMode.withholding.rawValue
+    /// 기록 생성 시각 — 같은 날 여러 건의 정렬용
+    var createdAt: Date = Date.now
+
     init(
         date: Date,
         manUnit: Double = 1.0,
@@ -35,7 +39,8 @@ class WorkEntry {
         workTag: WorkTag? = nil,
         memo: String = "",
         isPaid: Bool = false,
-        site: Site? = nil
+        site: Site? = nil,
+        taxMode: TaxMode = .withholding
     ) {
         self.date = date
         self.manUnit = manUnit
@@ -49,26 +54,33 @@ class WorkEntry {
         self.memo = memo
         self.isPaid = isPaid
         self.site = site
+        self.taxModeRaw = taxMode.rawValue
+        self.createdAt = .now
     }
-    
+
+    var taxMode: TaxMode {
+        get { TaxMode(rawValue: taxModeRaw) ?? .withholding }
+        set { taxModeRaw = newValue.rawValue }
+    }
+
     // MARK: - 계산
     var taxableAmount: Int {
-        Int(manUnit * Double(wage))
+        PayCalculator.taxable(manUnit: manUnit, wage: wage)
     }
-    
+
     var allowanceTotal: Int {
         mealAllowance + lodgingAllowance + transportAllowance
     }
-    
-    var tax: Int {
-        let base = taxableAmount - 150_000
-        guard base > 0 else { return 0 }
-        let incomeTax = Int(Double(base) * 0.06 * 0.45)
-        let localTax = Int(Double(incomeTax) * 0.1)
-        return incomeTax + localTax
+
+    var taxBreakdown: TaxBreakdown {
+        PayCalculator.tax(taxable: taxableAmount, mode: taxMode)
     }
-    
+
+    var tax: Int {
+        taxBreakdown.total
+    }
+
     var netAmount: Int {
-        taxableAmount - tax + allowanceTotal
+        PayCalculator.net(taxable: taxableAmount, tax: taxBreakdown, allowances: allowanceTotal)
     }
 }

@@ -11,50 +11,66 @@ import SwiftData
 struct SiteFormView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
-    
+
+    @AppStorage(AppDefaults.defaultTaxModeKey) private var defaultTaxModeRaw: String = TaxMode.withholding.rawValue
+    @AppStorage(AppDefaults.defaultWageKey) private var appDefaultWage: Int = 0
+    @AppStorage(AppDefaults.defaultMealKey) private var appDefaultMeal: Int = 0
+
     var editingSite: Site? = nil
-    
+    /// 저장 직후 호출 — 공수 입력 시트에서 "현장 빠른 등록" 후 바로 선택되게
+    var onSave: ((Site) -> Void)? = nil
+
     @State private var name: String = ""
     @State private var defaultWage: Int = 0
+    @State private var defaultMeal: Int = 0
+    @State private var taxMode: TaxMode = .withholding
     @State private var startDate: Date = .now
     @State private var location: String = ""
     @State private var memo: String = ""
     @State private var isActive: Bool = true
-    
+
     @FocusState private var focusedField: Field?
-    
-    enum Field { case name, wage, location, memo }
-    
+
+    enum Field { case name, wage, meal, location, memo }
+
     private var isValid: Bool {
         !name.trimmingCharacters(in: .whitespaces).isEmpty && defaultWage > 0
     }
-    
+
+    private var monthlyEstimate: (gross: Int, net: Int) {
+        let days = 22
+        let dailyTax = PayCalculator.tax(taxable: defaultWage, mode: taxMode).total
+        return (defaultWage * days, (defaultWage - dailyTax + defaultMeal) * days)
+    }
+
     var body: some View {
         NavigationStack {
             Form {
                 // MARK: - 기본 정보
                 Section("현장 정보") {
                     LabeledContent("현장명") {
-                        TextField("평택삼성 1공구", text: $name)
+                        TextField("평택 1공구", text: $name)
                             .multilineTextAlignment(.trailing)
                             .focused($focusedField, equals: .name)
+                            .submitLabel(.next)
+                            .onSubmit { focusedField = .wage }
                     }
-                    
+
                     DatePicker(
                         "시작일",
                         selection: $startDate,
                         displayedComponents: .date
                     )
-                    
+
                     LabeledContent("위치") {
                         TextField("경기도 평택시", text: $location)
                             .multilineTextAlignment(.trailing)
                             .focused($focusedField, equals: .location)
                     }
                 }
-                
+
                 // MARK: - 단가
-                Section("기본 단가") {
+                Section {
                     LabeledContent("1공수 단가") {
                         HStack {
                             TextField("0", value: $defaultWage, format: .number)
@@ -65,27 +81,47 @@ struct SiteFormView: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
-                    
-                    if defaultWage > 0 {
-                        LabeledContent("월 예상 수입 (22일)") {
-                            Text("\((defaultWage * 22).formatted())원")
+                    LabeledContent("기본 식대") {
+                        HStack {
+                            TextField("0", value: $defaultMeal, format: .number)
+                                .keyboardType(.numberPad)
+                                .multilineTextAlignment(.trailing)
+                                .focused($focusedField, equals: .meal)
+                            Text("원")
                                 .foregroundStyle(.secondary)
                         }
                     }
+                    Picker("세금 방식", selection: $taxMode) {
+                        ForEach(TaxMode.allCases) { mode in
+                            Text(mode.title).tag(mode)
+                        }
+                    }
+                } header: {
+                    Text("단가·세금")
+                } footer: {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(taxMode.detail)
+                        if defaultWage > 0 {
+                            Text("22일 기준 월 \(Format.won(monthlyEstimate.gross)) → 실수령 약 \(Format.won(monthlyEstimate.net))")
+                                .foregroundStyle(Color.accentColor)
+                        }
+                    }
                 }
-                
+
                 // MARK: - 메모
                 Section("메모") {
-                    TextField("공종, 참고사항 등", text: $memo, axis: .vertical)
+                    TextField("공종, 반장 연락처, 참고사항 등", text: $memo, axis: .vertical)
                         .lineLimit(3)
                         .focused($focusedField, equals: .memo)
                 }
-                
+
                 // MARK: - 상태
                 if editingSite != nil {
                     Section {
                         Toggle("진행중", isOn: $isActive)
                             .tint(.accentColor)
+                    } footer: {
+                        Text("끝난 현장은 꺼 두면 공수 입력 목록에서 사라져요. 기록은 그대로 남아요.")
                     }
                 }
             }
@@ -111,38 +147,57 @@ struct SiteFormView: View {
             .onAppear { loadInitialValues() }
         }
     }
-    
+
     // MARK: - 초기값 로드
     private func loadInitialValues() {
-        guard let site = editingSite else { return }
-        name = site.name
-        defaultWage = site.defaultWage
-        startDate = site.startDate
-        location = site.location
-        memo = site.memo
-        isActive = site.isActive
+        if let site = editingSite {
+            name = site.name
+            defaultWage = site.defaultWage
+            defaultMeal = site.defaultMealAllowance
+            taxMode = site.taxMode
+            startDate = site.startDate
+            location = site.location
+            memo = site.memo
+            isActive = site.isActive
+        } else {
+            taxMode = TaxMode(rawValue: defaultTaxModeRaw) ?? .withholding
+            defaultWage = appDefaultWage
+            defaultMeal = appDefaultMeal
+            if name.isEmpty {
+                focusedField = .name
+            }
+        }
     }
-    
+
     // MARK: - 저장
     private func save() {
+        let trimmedName = name.trimmingCharacters(in: .whitespaces)
+        let savedSite: Site
         if let site = editingSite {
-            site.name = name
+            site.name = trimmedName
             site.defaultWage = defaultWage
+            site.defaultMealAllowance = defaultMeal
+            site.taxMode = taxMode
             site.startDate = startDate
             site.location = location
             site.memo = memo
             site.isActive = isActive
+            savedSite = site
         } else {
             let site = Site(
-                name: name,
+                name: trimmedName,
                 defaultWage: defaultWage,
                 startDate: startDate,
                 location: location,
-                memo: memo
+                memo: memo,
+                taxMode: taxMode,
+                defaultMealAllowance: defaultMeal
             )
             context.insert(site)
+            savedSite = site
         }
         try? context.save()
+        onSave?(savedSite)
         dismiss()
     }
 }
