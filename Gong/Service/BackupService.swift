@@ -51,8 +51,8 @@ enum BackupError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .unreadable: return "백업 파일을 읽을 수 없어요. 공수장에서 내보낸 파일인지 확인해 주세요."
-        case .incompatible(let v): return "지원하지 않는 백업 버전(\(v))이에요. 앱을 최신 버전으로 업데이트해 주세요."
+        case .unreadable: return String(localized: "백업 파일을 읽을 수 없어요. 공수장에서 내보낸 파일인지 확인해 주세요.")
+        case .incompatible(let v): return String(localized: "지원하지 않는 백업 버전(\(v))이에요. 앱을 최신 버전으로 업데이트해 주세요.")
         }
     }
 }
@@ -114,7 +114,7 @@ enum BackupService {
         encoder.dateEncodingStrategy = .iso8601
         let data = try encoder.encode(makeDocument(sites: sites, entries: entries))
 
-        let name = "공수장-백업-\(Format.fileStamp.string(from: .now)).json"
+        let name = String(localized: "공수장-백업") + "-\(Format.fileStamp.string(from: .now)).json"
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(name)
         try data.write(to: url, options: .atomic)
         return url

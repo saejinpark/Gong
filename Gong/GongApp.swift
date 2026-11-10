@@ -29,8 +29,6 @@ struct GongApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
-                // 앱은 한국어 전용 — 시스템 언어와 무관하게 날짜·숫자를 한국식으로
-                .environment(\.locale, Locale(identifier: "ko_KR"))
         }
         .modelContainer(container)
     }

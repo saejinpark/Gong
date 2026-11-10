@@ -130,14 +130,15 @@ struct SiteFormView: View {
                     }
                 }
             }
-            .navigationTitle(editingSite == nil ? "현장 추가" : "현장 수정")
+            .gongListBackground()
+            .navigationTitle(editingSite == nil ? String(localized: "현장 추가") : String(localized: "현장 수정"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("취소") { dismiss() }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button(editingSite == nil ? "추가" : "저장") {
+                    Button(editingSite == nil ? String(localized: "추가") : String(localized: "저장")) {
                         save()
                     }
                     .fontWeight(.semibold)

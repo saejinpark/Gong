@@ -19,28 +19,28 @@ enum TaxMode: String, Codable, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .withholding: return "일용직 세금"
-        case .business:    return "3.3% 공제"
-        case .none:        return "공제 없음"
+        case .withholding: return String(localized: "일용직 세금")
+        case .business:    return String(localized: "3.3% 공제")
+        case .none:        return String(localized: "공제 없음")
         }
     }
 
     var shortTitle: String {
         switch self {
-        case .withholding: return "일용직"
-        case .business:    return "3.3%"
-        case .none:        return "없음"
+        case .withholding: return String(localized: "일용직")
+        case .business:    return String(localized: "3.3%")
+        case .none:        return String(localized: "없음")
         }
     }
 
     var detail: String {
         switch self {
         case .withholding:
-            return "하루 15만원까지 비과세, 넘는 금액의 2.7%에 지방소득세 10%를 더해 뗍니다. 세금이 1,000원 미만이면 떼지 않아요(소액부징수)."
+            return String(localized: "하루 15만원까지 비과세, 넘는 금액의 2.7%에 지방소득세 10%를 더해 뗍니다. 세금이 1,000원 미만이면 떼지 않아요(소액부징수).")
         case .business:
-            return "일당 전체의 3.3%(소득세 3% + 지방소득세 0.3%)를 뗍니다. 사업소득으로 신고하는 현장에서 써요."
+            return String(localized: "일당 전체의 3.3%(소득세 3% + 지방소득세 0.3%)를 뗍니다. 사업소득으로 신고하는 현장에서 써요.")
         case .none:
-            return "세금을 떼지 않고 일당을 그대로 받는 경우예요."
+            return String(localized: "세금을 떼지 않고 일당을 그대로 받는 경우예요.")
         }
     }
 }

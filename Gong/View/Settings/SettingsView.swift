@@ -8,6 +8,7 @@
 import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
+import UIKit
 
 enum AppDefaults {
     static let defaultTaxModeKey = "defaultTaxMode"
@@ -39,6 +40,12 @@ struct SettingsView: View {
             get: { TaxMode(rawValue: defaultTaxModeRaw) ?? .withholding },
             set: { defaultTaxModeRaw = $0.rawValue }
         )
+    }
+
+    /// 지금 앱에 표시되는 언어 이름 (그 언어로)
+    private var currentLanguageName: String {
+        let code = Bundle.main.preferredLocalizations.first ?? "ko"
+        return Locale(identifier: code).localizedString(forIdentifier: code)?.localizedCapitalized ?? code
     }
 
     var body: some View {
@@ -73,6 +80,33 @@ struct SettingsView: View {
                     Text("새 현장·기록 기본값")
                 } footer: {
                     Text("새 현장을 만들 때 미리 채워지는 값이에요. 현장마다 따로 바꿀 수 있어요.")
+                }
+
+                // MARK: - 언어
+                Section {
+                    Button {
+                        if let url = URL(string: UIApplication.openSettingsURLString) {
+                            UIApplication.shared.open(url)
+                        }
+                    } label: {
+                        HStack {
+                            Label("언어 바꾸기", systemImage: "globe")
+                            Spacer()
+                            Text(currentLanguageName)
+                                .foregroundStyle(Theme.Colors.textSecondary)
+                        }
+                    }
+                } header: {
+                    Text(verbatim: "언어 · Language · 语言 · Ngôn ngữ · Язык · Til")
+                } footer: {
+                    Text("휴대폰 설정 > 공수장 > 언어에서 이 앱만 다른 언어로 바꿀 수 있어요.")
+                }
+
+                // MARK: - 공수란?
+                Section("공수란?") {
+                    Text("공수는 하루 일한 양을 세는 단위예요. 정상 근무 하루가 1공수, 반나절은 0.5공수예요. 잔업·야간·특근은 현장에서 정한 만큼 더해요(예: 1.5공수).")
+                        .font(Theme.Fonts.label)
+                        .foregroundStyle(Theme.Colors.textSecondary)
                 }
 
                 // MARK: - 세금 안내
@@ -140,6 +174,7 @@ struct SettingsView: View {
                     }
                 }
             }
+            .gongListBackground()
             .navigationTitle("설정")
             .toolbar {
                 ToolbarItem(placement: .keyboard) {
@@ -190,7 +225,7 @@ struct SettingsView: View {
             let url = try BackupService.writeBackupFile(sites: sites, entries: entries)
             shareFile = ShareFile(url: url)
         } catch {
-            errorMessage = "백업 파일을 만들지 못했어요. \(error.localizedDescription)"
+            errorMessage = String(localized: "백업 파일을 만들지 못했어요. \(error.localizedDescription)")
         }
     }
 
@@ -212,9 +247,9 @@ struct SettingsView: View {
     private func restore(_ doc: BackupDocument) {
         do {
             try BackupService.restore(doc, into: context)
-            message = "현장 \(doc.sites.count)개, 기록 \(doc.entries.count)건을 복원했어요."
+            message = String(localized: "현장 \(doc.sites.count)개, 기록 \(doc.entries.count)건을 복원했어요.")
         } catch {
-            errorMessage = "복원에 실패했어요. \(error.localizedDescription)"
+            errorMessage = String(localized: "복원에 실패했어요. \(error.localizedDescription)")
         }
         pendingRestore = nil
     }
@@ -224,9 +259,9 @@ struct SettingsView: View {
             try context.delete(model: WorkEntry.self)
             try context.delete(model: Site.self)
             try context.save()
-            message = "모든 기록을 삭제했어요."
+            message = String(localized: "모든 기록을 삭제했어요.")
         } catch {
-            errorMessage = "삭제에 실패했어요. \(error.localizedDescription)"
+            errorMessage = String(localized: "삭제에 실패했어요. \(error.localizedDescription)")
         }
     }
 }

@@ -113,9 +113,34 @@ struct HolidayService {
         formatter.string(from: date)
     }
 
-    /// 공휴일 이름 (일요일은 nil — 날짜 색으로만 표시)
+    /// 공휴일 이름 (일요일은 nil — 날짜 색으로만 표시). 현재 언어로 번역해서 돌려준다.
     static func holidayName(for date: Date) -> String? {
-        holidays[key(for: date)]
+        holidays[key(for: date)].map(localizedName)
+    }
+
+    /// 데이터의 한국어 이름 → 화면 언어
+    private static func localizedName(_ name: String) -> String {
+        switch name {
+        case "신정":         return String(localized: "신정", comment: "1월 1일 공휴일")
+        case "설날 연휴":    return String(localized: "설날 연휴")
+        case "설날":         return String(localized: "설날")
+        case "삼일절":       return String(localized: "삼일절")
+        case "대체공휴일":   return String(localized: "대체공휴일")
+        case "근로자의 날":  return String(localized: "근로자의 날")
+        case "노동절":       return String(localized: "노동절")
+        case "어린이날":     return String(localized: "어린이날")
+        case "부처님오신날": return String(localized: "부처님오신날")
+        case "현충일":       return String(localized: "현충일")
+        case "제헌절":       return String(localized: "제헌절")
+        case "광복절":       return String(localized: "광복절")
+        case "추석 연휴":    return String(localized: "추석 연휴")
+        case "추석":         return String(localized: "추석")
+        case "추석·개천절":  return String(localized: "추석·개천절")
+        case "개천절":       return String(localized: "개천절")
+        case "한글날":       return String(localized: "한글날")
+        case "성탄절":       return String(localized: "성탄절")
+        default:             return name
+        }
     }
 
     /// 날짜 → DayType 자동 판별

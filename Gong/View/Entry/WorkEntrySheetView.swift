@@ -72,14 +72,15 @@ struct WorkEntrySheetView: View {
                 paidSection
                 if isEditing { deleteSection }
             }
-            .navigationTitle(isEditing ? "공수 수정" : "공수 추가")
+            .gongListBackground()
+            .navigationTitle(isEditing ? String(localized: "공수 수정") : String(localized: "공수 추가"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("취소") { dismiss() }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button(isMultiDay ? "\(multiDates.count)일 저장" : "저장") { save() }
+                    Button(isMultiDay ? String(localized: "\(Format.days(multiDates.count)) 저장") : String(localized: "저장")) { save() }
                         .fontWeight(.semibold)
                         .tint(Color.accentColor)
                         .disabled(!isValid)
@@ -135,7 +136,7 @@ struct WorkEntrySheetView: View {
             }
             Picker("구분", selection: $dayType) {
                 ForEach(DayType.allCases, id: \.self) { type in
-                    Text(type.rawValue).tag(type)
+                    Text(type.title).tag(type)
                 }
             }
             .pickerStyle(.segmented)
@@ -143,7 +144,7 @@ struct WorkEntrySheetView: View {
             if isMultiDay {
                 Text("선택한 날짜마다 아래 내용으로 기록이 하나씩 만들어져요. 평일·토요일·공휴일 구분은 날짜마다 자동으로 정해져요.")
             } else if dayType != autoDayType {
-                Text("달력 기준은 \(autoDayType.rawValue)이지만 직접 바꿨어요.")
+                Text("달력 기준은 \(autoDayType.title)이지만 직접 바꿨어요.")
             }
         }
     }
@@ -272,7 +273,7 @@ struct WorkEntrySheetView: View {
         }
     }
 
-    private func allowanceField(_ title: String, value: Binding<Int>, field: Field) -> some View {
+    private func allowanceField(_ title: LocalizedStringKey, value: Binding<Int>, field: Field) -> some View {
         HStack {
             Text(title)
             Spacer()
@@ -297,7 +298,7 @@ struct WorkEntrySheetView: View {
             Picker("태그", selection: $workTag) {
                 Text("없음").tag(Optional<WorkTag>.none)
                 ForEach(WorkTag.allCases, id: \.self) { tag in
-                    Text(tag.rawValue).tag(Optional(tag))
+                    Text(tag.title).tag(Optional(tag))
                 }
             }
 
@@ -353,11 +354,11 @@ struct WorkEntrySheetView: View {
     }
 
     private var manUnitPresets: [(label: String, value: Double)] {[
-        ("결근", 0.0),
-        ("반공수", 0.5),
-        ("정상", 1.0),
-        ("잔업", 1.5),
-        ("특근", 2.0),
+        (String(localized: "결근"), 0.0),
+        (String(localized: "반공수"), 0.5),
+        (String(localized: "정상"), 1.0),
+        (String(localized: "잔업"), 1.5),
+        (String(localized: "특근"), 2.0),
     ]}
 
     // MARK: - 초기값 로드

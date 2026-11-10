@@ -88,9 +88,21 @@ xcrun simctl launch booted dev.geppetto.Gong -seedDemo
 
 `HolidayService.holidays`에 연도별 날짜를 추가하고 `lastSupportedYear`를 올립니다. 설·추석·부처님오신날·대체공휴일은 매년 인사혁신처 발표를 확인하세요.
 
-## 디자인 시스템
+## 다국어
 
-[docs/DesignSystem.md](docs/DesignSystem.md)에 원칙, 색·글꼴 토큰, 컴포넌트 목록과 화면 구성 규칙이 있습니다. 화면 코드는 `Theme`와 `Components`만 사용합니다.
+한국어(기본), English, 简体中文, Tiếng Việt, Русский, Oʻzbekcha를 지원합니다. 건설근로자공제회 2024년 자료에서 외국인 건설근로자는 한국계 중국인, 중국인, 베트남인, 고려인(러시아어권), 우즈베키스탄 순으로 많아 이 언어들을 골랐습니다.
+
+- 번역은 `Gong/Localizable.xcstrings`, 홈 화면 앱 이름은 `Gong/InfoPlist.xcstrings`에 있습니다.
+- 공수 단위는 언어별로 현장에서 쓰는 말에 맞췄습니다: 工(중국어), công(베트남어), гонсу(러시아어), gongsu(영어·우즈베크어).
+- SwiftData에 저장되는 enum의 rawValue(평일, 맑음, 우천중단 등)는 바꾸지 말고, 화면에는 `title`을 씁니다.
+- 외국어로 쓰는 사용자도 정산 공유 메뉴에서 "한국어로 공유"를 골라 반장님께 한국어로 보낼 수 있습니다.
+- 새 문구를 추가하면 `String(localized:)`나 SwiftUI 리터럴로 쓰고 Xcode에서 빌드하면 카탈로그에 자동으로 추가됩니다.
+
+## 디자인 시스템 "현장"
+
+안전 조끼 노랑, 잉크 차콜, 작업일지 종이색. 아이콘은 공수의 공(工)이자 H빔 단면인 工에 공사장 안전 띠를 둘렀습니다. 홈은 잉크 바탕의 실수령액 카드 → 노랑 "오늘 1공수 찍기" 버튼 → 일한 날이 현장 색 도장처럼 찍히는 달력 순서입니다.
+
+[docs/DesignSystem.md](docs/DesignSystem.md)에 콘셉트, 색·글꼴 토큰(라이트/다크), 컴포넌트 목록과 화면 구성 규칙이 있습니다. 화면 코드는 `Theme`와 `Components`만 사용합니다.
 
 ## 스토어 제출
 

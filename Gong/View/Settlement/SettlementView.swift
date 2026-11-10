@@ -30,12 +30,12 @@ struct SettlementView: View {
     private var summary: MonthlySummary { MonthlySummary(month: selectedMonth, entries: monthEntries) }
     private var paidCount: Int { summary.entries.count - summary.unpaid.count }
     private var unpaidText: String {
-        summary.unpaid.isEmpty ? "없음" : "\(summary.unpaid.count)건 · \(Format.won(summary.unpaidAmount))"
+        summary.unpaid.isEmpty ? String(localized: "없음") : "\(Format.count(summary.unpaid.count)) · \(Format.won(summary.unpaidAmount))"
     }
     private var hasUnpaidThisMonth: Bool { !summary.unpaid.isEmpty }
     private var allUnpaidAmount: Int { allUnpaid.reduce(0) { $0 + $1.netAmount } }
     private var yearSummary: MonthlySummary { MonthlySummary(month: selectedMonth, entries: yearEntries) }
-    private var yearTitle: String { "\(String(calendar.component(.year, from: selectedMonth)))년 전체" }
+    private var yearTitle: String { String(localized: "\(String(calendar.component(.year, from: selectedMonth)))년 전체") }
 
     private var yearEntries: [WorkEntry] {
         guard let interval = calendar.dateInterval(of: .year, for: selectedMonth) else { return [] }
@@ -62,20 +62,22 @@ struct SettlementView: View {
                             UnpaidListView()
                         } label: {
                             HStack {
-                                Label("못 받은 돈 모아보기", systemImage: "exclamationmark.circle.fill")
-                                    .foregroundStyle(.red)
+                                Label("못 받은 돈 모아보기", systemImage: "exclamationmark.triangle.fill")
+                                    .font(Theme.Fonts.headline)
+                                    .foregroundStyle(Theme.Colors.onBrand)
                                 Spacer()
                                 VStack(alignment: .trailing, spacing: 2) {
                                     Text(Format.won(allUnpaidAmount))
-                                        .font(.subheadline.bold())
-                                        .foregroundStyle(.red)
+                                        .font(Theme.Fonts.amount)
+                                        .foregroundStyle(Theme.Colors.onBrand)
                                         .monospacedDigit()
                                     Text("\(allUnpaid.count)건")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
+                                        .font(Theme.Fonts.caption.weight(.semibold))
+                                        .foregroundStyle(Theme.Colors.onBrand.opacity(0.7))
                                 }
                             }
                         }
+                        .listRowBackground(Theme.Colors.brand)
                     }
                 }
 
@@ -89,17 +91,17 @@ struct SettlementView: View {
                     // MARK: - 실수령 히어로
                     Section {
                         HeroCard(
-                            title: "\(calendar.component(.month, from: selectedMonth))월 실수령액",
+                            title: String(localized: "\(Format.monthName.string(from: selectedMonth)) 실수령액"),
                             amount: summary.net,
-                            caption: "\(Format.manUnit(summary.manUnit))공수 · \(summary.workDays)일 근무 · 하루 평균 \(Format.won(summary.workDays > 0 ? summary.net / summary.workDays : 0))"
+                            caption: String(localized: "\(Format.gongsu(summary.manUnit)) · \(Format.days(summary.workDays)) 근무 · 하루 평균 \(Format.won(summary.workDays > 0 ? summary.net / summary.workDays : 0))")
                         ) {
                             HStack(spacing: Theme.Spacing.sm) {
-                                TagChip(text: "일당 \(summary.taxable.formatted())원", tint: .white.opacity(0.25))
+                                InkChip(text: String(localized: "일당 \(Format.won(summary.taxable))"))
                                 if summary.allowance > 0 {
-                                    TagChip(text: "수당 +\(summary.allowance.formatted())원", tint: .white.opacity(0.25))
+                                    InkChip(text: String(localized: "수당 \(Format.signedWon(summary.allowance))"))
                                 }
                                 if summary.tax > 0 {
-                                    TagChip(text: "세금 -\(summary.tax.formatted())원", tint: .white.opacity(0.25))
+                                    InkChip(text: String(localized: "세금 \(Format.signedWon(-summary.tax))"))
                                 }
                             }
                             .padding(.top, Theme.Spacing.xs)
@@ -191,7 +193,7 @@ struct SettlementView: View {
                                         entry.isPaid.toggle()
                                         try? context.save()
                                     } label: {
-                                        Label(entry.isPaid ? "미입금으로" : "입금 완료", systemImage: entry.isPaid ? "arrow.uturn.backward" : "checkmark.circle")
+                                        Label(entry.isPaid ? String(localized: "미입금으로") : String(localized: "입금 완료"), systemImage: entry.isPaid ? "arrow.uturn.backward" : "checkmark.circle")
                                     }
                                     .tint(entry.isPaid ? .gray : .green)
                                 }
@@ -201,7 +203,7 @@ struct SettlementView: View {
                     // MARK: - 날씨별 집계
                     Section("날씨별 근무") {
                         ForEach(weatherBreakdown, id: \.condition) { item in
-                            LabeledContent("\(item.condition.emoji) \(item.condition.rawValue)") {
+                            LabeledContent("\(item.condition.emoji) \(item.condition.title)") {
                                 Text("\(item.days)일")
                                     .foregroundStyle(.secondary)
                             }
@@ -240,6 +242,7 @@ struct SettlementView: View {
                     }
                 }
             }
+            .gongListBackground()
             .navigationTitle("정산")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
@@ -251,6 +254,12 @@ struct SettlementView: View {
                             }
                             ShareLink(item: SettlementExporter.text(for: summary, includeDaily: false)) {
                                 Label("요약만 공유", systemImage: "text.alignleft")
+                            }
+                            if !Format.isKorean {
+                                // 외국인 근로자가 한국인 반장·사장님께 보낼 때
+                                ShareLink(item: SettlementExporter.text(for: summary, korean: true)) {
+                                    Label("한국어로 공유 (반장님께)", systemImage: "character.bubble")
+                                }
                             }
                             Button {
                                 exportCSV()
@@ -290,7 +299,7 @@ struct SettlementView: View {
             let url = try SettlementExporter.writeCSVFile(entries: monthEntries, month: selectedMonth)
             shareFile = ShareFile(url: url)
         } catch {
-            errorMessage = "파일을 만들지 못했어요. \(error.localizedDescription)"
+            errorMessage = String(localized: "파일을 만들지 못했어요. \(error.localizedDescription)")
         }
     }
 
@@ -320,7 +329,7 @@ struct UnpaidListView: View {
     private var total: Int { unpaid.reduce(0) { $0 + $1.netAmount } }
 
     private var bySite: [(name: String, entries: [WorkEntry])] {
-        Dictionary(grouping: unpaid) { $0.site?.name ?? "현장 미지정" }
+        Dictionary(grouping: unpaid) { $0.site?.name ?? Format.unassignedSite }
             .map { (name: $0.key, entries: $0.value) }
             .sorted { $0.entries.reduce(0) { $0 + $1.netAmount } > $1.entries.reduce(0) { $0 + $1.netAmount } }
     }
@@ -375,6 +384,7 @@ struct UnpaidListView: View {
                 }
             }
         }
+        .gongListBackground()
         .navigationTitle("못 받은 돈")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(item: $editingEntry) { entry in
@@ -418,7 +428,7 @@ private struct MonthYearWheelPicker: View {
 
             Picker("월", selection: $selectedMonthInt) {
                 ForEach(1...12, id: \.self) { month in
-                    Text("\(month)월").tag(month)
+                    Text(Format.monthWheelLabel(month)).tag(month)
                 }
             }
             .pickerStyle(.wheel)

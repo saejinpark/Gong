@@ -47,13 +47,13 @@ struct SiteDetailView: View {
             // MARK: - 요약 카드
             Section {
                 HeroCard(
-                    title: "누적 실수령액",
+                    title: String(localized: "누적 실수령액"),
                     amount: totalNetAmount,
-                    caption: "\(Format.manUnit(totalManUnit))공수 · \(site.entries.count)일 · 이번 달 \(Format.manUnit(thisMonthEntries.reduce(0) { $0 + $1.manUnit }))공수",
-                    tint: Theme.Colors.site(site.colorIndex)
+                    caption: String(localized: "\(Format.gongsu(totalManUnit)) · \(Format.days(site.entries.count)) · 이번 달 \(Format.gongsu(thisMonthEntries.reduce(0) { $0 + $1.manUnit }))"),
+                    style: .color(Theme.Colors.site(site.colorIndex))
                 ) {
                     if !unpaid.isEmpty {
-                        TagChip(text: "미입금 \(unpaidAmount.formatted())원 · \(unpaid.count)건", tint: .white.opacity(0.25))
+                        InkChip(text: String(localized: "미입금 \(Format.won(unpaidAmount)) · \(Format.count(unpaid.count))"))
                             .padding(.top, Theme.Spacing.xs)
                     }
                 }
@@ -96,7 +96,7 @@ struct SiteDetailView: View {
                     }
                 }
                 LabeledContent("상태") {
-                    Text(site.isActive ? "진행중" : "종료")
+                    Text(site.isActive ? String(localized: "진행중") : String(localized: "종료"))
                         .foregroundStyle(site.isActive ? .green : .secondary)
                         .fontWeight(.medium)
                 }
@@ -123,7 +123,7 @@ struct SiteDetailView: View {
                                         entry.isPaid.toggle()
                                         try? context.save()
                                     } label: {
-                                        Label(entry.isPaid ? "미입금으로" : "입금 완료", systemImage: entry.isPaid ? "arrow.uturn.backward" : "checkmark.circle")
+                                        Label(entry.isPaid ? String(localized: "미입금으로") : String(localized: "입금 완료"), systemImage: entry.isPaid ? "arrow.uturn.backward" : "checkmark.circle")
                                     }
                                     .tint(entry.isPaid ? .gray : .green)
                                 }
@@ -155,6 +155,7 @@ struct SiteDetailView: View {
                 }
             }
         }
+        .gongListBackground()
         .navigationTitle(site.name)
         .navigationBarTitleDisplayMode(.large)
         .toolbar {

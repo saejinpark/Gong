@@ -7,9 +7,38 @@
 
 import SwiftUI
 
+// MARK: - 장식
+
+/// 공사장 안전 띠 — 히어로 카드 윗선, 빈 화면 등에 쓰는 사선 줄무늬
+struct HazardStripe: View {
+    var height: CGFloat = 6
+    var stripe: Color = Theme.Colors.brand
+    var gap: Color = Theme.Colors.ink
+
+    var body: some View {
+        Canvas { ctx, size in
+            ctx.fill(Path(CGRect(origin: .zero, size: size)), with: .color(gap))
+            let w: CGFloat = size.height * 1.6
+            var x: CGFloat = -size.height
+            while x < size.width + size.height {
+                var p = Path()
+                p.move(to: CGPoint(x: x, y: size.height))
+                p.addLine(to: CGPoint(x: x + w, y: size.height))
+                p.addLine(to: CGPoint(x: x + w + size.height, y: 0))
+                p.addLine(to: CGPoint(x: x + size.height, y: 0))
+                p.closeSubpath()
+                ctx.fill(p, with: .color(stripe))
+                x += w * 2
+            }
+        }
+        .frame(height: height)
+        .accessibilityHidden(true)
+    }
+}
+
 // MARK: - 카드
 
-/// 그룹 배경 위에 올라가는 기본 카드
+/// 바탕 위에 올라가는 기본 카드
 struct GCard<Content: View>: View {
     var padding: CGFloat = Theme.Spacing.lg
     @ViewBuilder var content: () -> Content
@@ -22,62 +51,93 @@ struct GCard<Content: View>: View {
     }
 }
 
-/// 이번 달 실수령처럼 "가장 먼저 봐야 할 숫자" 하나를 크게 보여주는 카드
+/// 가장 먼저 봐야 할 숫자 하나를 잉크 바탕에 노랑으로 크게.
 struct HeroCard<Footer: View>: View {
+    enum Style {
+        case ink
+        case color(Color)
+    }
+
     let title: String
     let amount: Int
     var caption: String? = nil
-    var tint: Color = Theme.Colors.brand
+    var style: Style = .ink
     @ViewBuilder var footer: () -> Footer
 
-    init(title: String, amount: Int, caption: String? = nil, tint: Color = Theme.Colors.brand,
-         @ViewBuilder footer: @escaping () -> Footer = { EmptyView() }) {
+    init(title: String, amount: Int, caption: String? = nil, style: Style = .ink,
+         @ViewBuilder footer: @escaping () -> Footer) {
         self.title = title
         self.amount = amount
         self.caption = caption
-        self.tint = tint
+        self.style = style
         self.footer = footer
     }
 
+    private var background: Color {
+        if case .color(let c) = style { return c }
+        return Theme.Colors.ink
+    }
+    /// 밝은 현장 색(호박·노랑 등) 위에서는 잉크 글자, 어두운 색 위에서는 흰 글자
+    private var isLightBackground: Bool {
+        if case .color(let c) = style { return Theme.Colors.prefersDarkText(on: c) }
+        return false
+    }
+    private var textColor: Color { isLightBackground ? Theme.Colors.onBrand : Theme.Colors.onInk }
+    private var amountColor: Color {
+        if case .color = style { return textColor }
+        return Theme.Colors.onInkAccent
+    }
+    private var stripeColor: Color {
+        isLightBackground ? Theme.Colors.onBrand.opacity(0.85) : Theme.Colors.brand
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
-            Text(title)
-                .font(Theme.Fonts.label)
-                .foregroundStyle(Theme.Colors.onBrand.opacity(0.85))
-            Text(Format.won(amount))
-                .font(Theme.Fonts.heroAmount)
-                .foregroundStyle(Theme.Colors.onBrand)
-                .monospacedDigit()
-                .minimumScaleFactor(0.6)
-                .lineLimit(1)
-            if let caption {
-                Text(caption)
-                    .font(Theme.Fonts.label)
-                    .foregroundStyle(Theme.Colors.onBrand.opacity(0.9))
+        VStack(alignment: .leading, spacing: 0) {
+            HazardStripe(stripe: stripeColor, gap: background)
+            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                Text(title)
+                    .font(Theme.Fonts.label.weight(.semibold))
+                    .foregroundStyle(textColor.opacity(0.75))
+                Text(Format.won(amount))
+                    .font(Theme.Fonts.heroAmount)
+                    .foregroundStyle(amountColor)
+                    .monospacedDigit()
+                    .minimumScaleFactor(0.6)
+                    .lineLimit(1)
+                if let caption {
+                    Text(caption)
+                        .font(Theme.Fonts.label)
+                        .foregroundStyle(textColor.opacity(0.9))
+                }
+                footer()
+                    .environment(\.heroOnLight, isLightBackground)
             }
-            footer()
+            .padding(Theme.Spacing.lg)
         }
-        .padding(Theme.Spacing.lg)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            LinearGradient(colors: [tint, tint.opacity(0.82)], startPoint: .topLeading, endPoint: .bottomTrailing),
-            in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous)
-        )
+        .background(background)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
         .accessibilityElement(children: .combine)
+    }
+}
+
+extension HeroCard where Footer == EmptyView {
+    init(title: String, amount: Int, caption: String? = nil, style: Style = .ink) {
+        self.init(title: title, amount: amount, caption: caption, style: style) { EmptyView() }
     }
 }
 
 /// 작은 통계 타일 (이번 주 / 이번 달 등)
 struct StatTile: View {
-    let title: String
+    let title: LocalizedStringKey
     let value: String
     var detail: String? = nil
-    var tint: Color = Theme.Colors.brand
+    var tint: Color = Theme.Colors.textPrimary
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
             Text(title)
-                .font(Theme.Fonts.caption)
+                .font(Theme.Fonts.caption.weight(.semibold))
                 .foregroundStyle(Theme.Colors.textSecondary)
             Text(value)
                 .font(Theme.Fonts.amountLarge)
@@ -127,14 +187,14 @@ struct MoneyText: View {
         case .plain: return Theme.Colors.textSecondary
         case .positive: return Theme.Colors.positive
         case .negative: return value > 0 ? Theme.Colors.danger : Theme.Colors.textSecondary
-        case .emphasis: return Theme.Colors.brand
+        case .emphasis: return Theme.Colors.textPrimary
         }
     }
 }
 
-/// 설정 화면 등에서 쓰는 "라벨 — 값" 한 줄
+/// "라벨 — 값" 한 줄
 struct KeyValueRow: View {
-    let label: String
+    let label: LocalizedStringKey
     let value: String
     var valueColor: Color = Theme.Colors.textSecondary
     var bold: Bool = false
@@ -146,7 +206,7 @@ struct KeyValueRow: View {
                 .foregroundStyle(Theme.Colors.textSecondary)
             Spacer()
             Text(value)
-                .font(bold ? Theme.Fonts.amountSmall : Theme.Fonts.label)
+                .font(bold ? Theme.Fonts.amount : Theme.Fonts.label)
                 .foregroundStyle(valueColor)
                 .monospacedDigit()
                 .multilineTextAlignment(.trailing)
@@ -157,25 +217,79 @@ struct KeyValueRow: View {
     }
 }
 
+/// 화면 상단의 큰 제목 (홈 "11월" 등)
+struct ScreenHeader<Trailing: View>: View {
+    let title: String
+    var subtitle: String? = nil
+    @ViewBuilder var trailing: () -> Trailing
+
+    init(title: String, subtitle: String? = nil, @ViewBuilder trailing: @escaping () -> Trailing = { EmptyView() }) {
+        self.title = title
+        self.subtitle = subtitle
+        self.trailing = trailing
+    }
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(title)
+                .font(Theme.Fonts.screenTitle)
+                .foregroundStyle(Theme.Colors.textPrimary)
+            if let subtitle {
+                Text(subtitle)
+                    .font(Theme.Fonts.title)
+                    .foregroundStyle(Theme.Colors.textSecondary)
+            }
+            Spacer()
+            trailing()
+        }
+        .padding(.horizontal, Theme.Spacing.lg)
+    }
+}
+
+/// 둥근 아이콘 버튼 (헤더의 ‹ › 등)
+struct RoundIconButton: View {
+    let systemImage: String
+    var accessibilityLabel: LocalizedStringKey
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.system(.body, design: .rounded).weight(.bold))
+                .foregroundStyle(Theme.Colors.textPrimary)
+                .frame(width: Theme.minTapTarget, height: Theme.minTapTarget)
+                .background(Theme.Colors.surface, in: Circle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(accessibilityLabel)
+    }
+}
+
 // MARK: - 배지 · 칩
 
-/// 달력 셀과 기록 행에 쓰는 공수 배지
+/// 공수 배지. compact는 달력 셀용 — 색 면 위에 잉크 숫자(도장 느낌).
 struct ManUnitBadge: View {
     let value: Double
     var compact: Bool = false
 
     var body: some View {
-        Text(compact ? Format.manUnit(value) : "\(Format.manUnit(value))공수")
-            .font(compact ? Theme.Fonts.badge : Theme.Fonts.amountSmall)
-            .foregroundStyle(compact ? Theme.Colors.onBrand : Theme.Colors.manUnit(value))
-            .monospacedDigit()
-            .lineLimit(1)
-            .minimumScaleFactor(0.7)
-            .frame(maxWidth: compact ? .infinity : nil)
-            .padding(.vertical, compact ? 2 : 0)
-            .background(compact ? Theme.Colors.manUnit(value) : .clear,
-                        in: RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous))
-            .accessibilityLabel("\(Format.manUnit(value))공수")
+        if compact {
+            Text(Format.manUnit(value))
+                .font(Theme.Fonts.badge)
+                .foregroundStyle(.white)
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+                .frame(maxWidth: .infinity, minHeight: 20)
+                .background(Theme.Colors.manUnit(value), in: RoundedRectangle(cornerRadius: Theme.Radius.sm, style: .continuous))
+                .accessibilityLabel(Format.gongsu(value))
+        } else {
+            Text(Format.gongsu(value))
+                .font(Theme.Fonts.amountSmall)
+                .foregroundStyle(Theme.Colors.manUnit(value))
+                .monospacedDigit()
+                .lineLimit(1)
+        }
     }
 }
 
@@ -184,8 +298,9 @@ struct PaidBadge: View {
     let isPaid: Bool
 
     var body: some View {
-        Label(isPaid ? "입금완료" : "미입금", systemImage: isPaid ? "checkmark.circle.fill" : "clock")
-            .font(Theme.Fonts.caption2.weight(.semibold))
+        Label(isPaid ? String(localized: "입금완료") : String(localized: "미입금"),
+              systemImage: isPaid ? "checkmark.circle.fill" : "clock.fill")
+            .font(Theme.Fonts.caption2.weight(.bold))
             .foregroundStyle(isPaid ? Theme.Colors.positive : Theme.Colors.warning)
             .labelStyle(.titleAndIcon)
     }
@@ -196,15 +311,45 @@ struct TagChip: View {
     let text: String
     var tint: Color = Theme.Colors.warning
     var filled: Bool = true
+    var foreground: Color? = nil
 
     var body: some View {
         Text(text)
-            .font(Theme.Fonts.caption2.weight(.semibold))
-            .foregroundStyle(filled ? Theme.Colors.onBrand : tint)
+            .font(Theme.Fonts.caption2.weight(.bold))
+            .foregroundStyle(foreground ?? (filled ? .white : tint))
             .padding(.horizontal, Theme.Spacing.sm)
-            .padding(.vertical, 3)
+            .padding(.vertical, 4)
             .background(filled ? tint : tint.opacity(0.15), in: Capsule())
             .lineLimit(1)
+    }
+}
+
+/// 잉크 바탕(히어로) 위에 올리는 칩
+struct InkChip: View {
+    let text: String
+    @Environment(\.heroOnLight) private var onLight
+
+    var body: some View {
+        Text(text)
+            .font(Theme.Fonts.caption2.weight(.bold))
+            .foregroundStyle(onLight ? Theme.Colors.onBrand : Theme.Colors.onInk)
+            .monospacedDigit()
+            .padding(.horizontal, Theme.Spacing.sm)
+            .padding(.vertical, 4)
+            .background(onLight ? Theme.Colors.onBrand.opacity(0.12) : Color.white.opacity(0.14), in: Capsule())
+            .lineLimit(1)
+    }
+}
+
+private struct HeroOnLightKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    /// HeroCard 바탕이 밝은 색인지 — 안의 칩이 글자색을 맞춘다
+    var heroOnLight: Bool {
+        get { self[HeroOnLightKey.self] }
+        set { self[HeroOnLightKey.self] = newValue }
     }
 }
 
@@ -230,7 +375,7 @@ struct SiteLabel: View {
             if let site {
                 SiteDot(colorIndex: site.colorIndex)
             }
-            Text(site?.name ?? "현장 미지정")
+            Text(site?.name ?? Format.unassignedSite)
                 .font(font)
                 .lineLimit(1)
         }
@@ -239,45 +384,41 @@ struct SiteLabel: View {
 
 // MARK: - 버튼
 
-/// 화면에서 가장 중요한 한 가지 행동 (오늘 1공수 기록 등)
+/// 화면의 주요 행동 1개 — 형광 노랑 면에 잉크 글자
 struct BigActionButton: View {
-    let title: String
+    let title: LocalizedStringKey
     var subtitle: String? = nil
     var systemImage: String = "plus.circle.fill"
-    var tint: Color = Theme.Colors.inverseSurface
-    var foreground: Color = Theme.Colors.onInverse
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
             HStack(spacing: Theme.Spacing.md) {
                 Image(systemName: systemImage)
-                    .font(.title2)
-                    .foregroundStyle(Theme.Colors.brand)
+                    .font(.title2.weight(.bold))
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
-                        .font(Theme.Fonts.headline)
+                        .font(Theme.Fonts.headline.weight(.heavy))
                     if let subtitle {
                         Text(subtitle)
-                            .font(Theme.Fonts.caption)
-                            .opacity(0.85)
+                            .font(Theme.Fonts.caption.weight(.semibold))
+                            .opacity(0.8)
                     }
                 }
                 Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.footnote.weight(.semibold))
-                    .opacity(0.7)
+                Image(systemName: "arrow.right")
+                    .font(.body.weight(.heavy))
             }
-            .foregroundStyle(foreground)
+            .foregroundStyle(Theme.Colors.onBrand)
             .padding(Theme.Spacing.lg)
-            .frame(maxWidth: .infinity, minHeight: 56)
-            .background(tint, in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
+            .frame(maxWidth: .infinity, minHeight: 60)
+            .background(Theme.Colors.brand, in: RoundedRectangle(cornerRadius: Theme.Radius.lg, style: .continuous))
         }
         .buttonStyle(.plain)
     }
 }
 
-/// 카드 안의 보조 버튼 (선택 상태 표시 가능)
+/// 카드 안의 선택 버튼 (프리셋)
 struct ChoiceButton: View {
     let title: String
     var subtitle: String? = nil
@@ -297,7 +438,7 @@ struct ChoiceButton: View {
             }
             .lineLimit(1)
             .minimumScaleFactor(0.7)
-            .foregroundStyle(isSelected ? Theme.Colors.onBrand : Theme.Colors.textPrimary)
+            .foregroundStyle(isSelected ? .white : Theme.Colors.textPrimary)
             .frame(maxWidth: .infinity, minHeight: Theme.minTapTarget)
             .padding(.vertical, Theme.Spacing.xs)
             .background(isSelected ? tint : Theme.Colors.surfaceInset,
@@ -310,14 +451,14 @@ struct ChoiceButton: View {
 // MARK: - 섹션 · 빈 화면
 
 struct SectionTitle: View {
-    let text: String
+    let text: LocalizedStringKey
     var trailing: AnyView? = nil
 
-    init(_ text: String) {
+    init(_ text: LocalizedStringKey) {
         self.text = text
     }
 
-    init<T: View>(_ text: String, @ViewBuilder trailing: () -> T) {
+    init<T: View>(_ text: LocalizedStringKey, @ViewBuilder trailing: () -> T) {
         self.text = text
         self.trailing = AnyView(trailing())
     }
@@ -326,6 +467,7 @@ struct SectionTitle: View {
         HStack {
             Text(text)
                 .font(Theme.Fonts.title)
+                .foregroundStyle(Theme.Colors.textPrimary)
             Spacer()
             trailing
         }
@@ -337,15 +479,15 @@ struct SectionTitle: View {
 
 struct EmptyStateView: View {
     let systemImage: String
-    let title: String
-    var message: String? = nil
-    var actionTitle: String? = nil
+    let title: LocalizedStringKey
+    var message: LocalizedStringKey? = nil
+    var actionTitle: LocalizedStringKey? = nil
     var action: (() -> Void)? = nil
 
     var body: some View {
         VStack(spacing: Theme.Spacing.md) {
             Image(systemName: systemImage)
-                .font(.system(size: 40))
+                .font(.system(size: 40, weight: .bold))
                 .foregroundStyle(Theme.Colors.textTertiary)
             Text(title)
                 .font(Theme.Fonts.headline)
@@ -358,7 +500,7 @@ struct EmptyStateView: View {
             if let actionTitle, let action {
                 Button(action: action) {
                     Text(actionTitle)
-                        .font(Theme.Fonts.headline)
+                        .font(Theme.Fonts.headline.weight(.heavy))
                         .foregroundStyle(Theme.Colors.onBrand)
                         .padding(.horizontal, Theme.Spacing.xl)
                         .padding(.vertical, Theme.Spacing.md)
@@ -382,6 +524,11 @@ struct EntryRow: View {
 
     var body: some View {
         HStack(alignment: .center, spacing: Theme.Spacing.md) {
+            RoundedRectangle(cornerRadius: 2)
+                .fill(entry.site.map { Theme.Colors.site($0.colorIndex) } ?? Theme.Colors.textTertiary)
+                .frame(width: 4)
+                .padding(.vertical, 2)
+
             VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                 HStack(spacing: 6) {
                     if showsDate {
@@ -390,14 +537,16 @@ struct EntryRow: View {
                             .monospacedDigit()
                     }
                     if showsSite {
-                        SiteLabel(site: entry.site, font: showsDate ? Theme.Fonts.label : Theme.Fonts.headline)
+                        Text(entry.site?.name ?? Format.unassignedSite)
+                            .font(showsDate ? Theme.Fonts.label : Theme.Fonts.headline)
+                            .lineLimit(1)
                     }
                     Text(entry.weatherCondition.emoji)
                         .font(Theme.Fonts.caption)
                 }
                 HStack(spacing: 6) {
                     if let tag = entry.workTag {
-                        TagChip(text: tag.rawValue)
+                        TagChip(text: tag.title)
                     }
                     if !entry.memo.isEmpty {
                         Text(entry.memo)
@@ -410,11 +559,22 @@ struct EntryRow: View {
             Spacer(minLength: 0)
             VStack(alignment: .trailing, spacing: 2) {
                 ManUnitBadge(value: entry.manUnit)
-                MoneyText(value: entry.netAmount, style: .plain, font: Theme.Fonts.caption)
+                MoneyText(value: entry.netAmount, style: .emphasis, font: Theme.Fonts.amountSmall)
                 PaidBadge(isPaid: entry.isPaid)
             }
         }
         .padding(.vertical, Theme.Spacing.xs)
         .accessibilityElement(children: .combine)
+    }
+}
+
+// MARK: - 리스트 스타일 보조
+
+extension View {
+    /// List/Form을 공수장 바탕색 위에 올린다
+    func gongListBackground() -> some View {
+        self
+            .scrollContentBackground(.hidden)
+            .background(Theme.Colors.background)
     }
 }

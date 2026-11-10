@@ -31,7 +31,7 @@ struct ContentView: View {
                     Label("설정", systemImage: "gearshape")
                 }
         }
-        .tint(.accentColor)
+        .tint(Theme.Colors.accentText)
     }
 }
 

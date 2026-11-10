@@ -1,0 +1,48 @@
+{
+  "sourceLanguage": "ko",
+  "strings": {
+    "CFBundleDisplayName": {
+      "comment": "홈 화면 아이콘 아래 이름",
+      "extractionState": "manual",
+      "localizations": {
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "공수장"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gongsu"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "工数账"
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sổ công"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Гонсу"
+          }
+        },
+        "uz": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gongsu"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

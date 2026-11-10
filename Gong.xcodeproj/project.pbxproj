@@ -86,10 +86,15 @@
 				};
 			};
 			buildConfigurationList = EF408DB12FA6C8FB00AE9917 /* Build configuration list for PBXProject "Gong" */;
-			developmentRegion = en;
+			developmentRegion = ko;
 			hasScannedForEncodings = 0;
 			knownRegions = (
+				ko,
 				en,
+				"zh-Hans",
+				vi,
+				ru,
+				uz,
 				Base,
 			);
 			mainGroup = EF408DAD2FA6C8FB00AE9917;
@@ -267,7 +272,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.1;
+				MARKETING_VERSION = 3.0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = dev.geppetto.Gong;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -301,7 +306,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.1;
+				MARKETING_VERSION = 3.0.1;
 				PRODUCT_BUNDLE_IDENTIFIER = dev.geppetto.Gong;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;

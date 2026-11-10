@@ -37,6 +37,7 @@ struct SiteListView: View {
                     listView
                 }
             }
+            .gongListBackground()
             .navigationTitle("현장")
             .searchable(text: $searchText, prompt: "현장명, 위치 검색")
             .toolbar {
@@ -100,11 +101,11 @@ struct SiteListView: View {
                 isShowingForm = true
             } label: {
                 Text("현장 추가하기")
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.white)
+                    .font(Theme.Fonts.headline.weight(.heavy))
+                    .foregroundStyle(Theme.Colors.onBrand)
                     .padding(.horizontal, 24)
                     .padding(.vertical, 12)
-                    .background(Color.accentColor, in: Capsule())
+                    .background(Theme.Colors.brand, in: Capsule())
             }
         }
     }
@@ -127,9 +128,11 @@ struct SiteRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
-                SiteDot(colorIndex: site.colorIndex, size: 10)
+                RoundedRectangle(cornerRadius: 3)
+                    .fill(Theme.Colors.site(site.colorIndex))
+                    .frame(width: 6, height: 22)
                 Text(site.name)
-                    .font(.headline)
+                    .font(Theme.Fonts.headline)
                 if !site.isActive {
                     Text("종료")
                         .font(.caption)
@@ -160,9 +163,8 @@ struct SiteRow: View {
             }
             HStack {
                 Text(Format.won(site.defaultWage))
-                    .font(.subheadline)
-                    .foregroundStyle(Color.accentColor)
-                    .fontWeight(.semibold)
+                    .font(Theme.Fonts.amountSmall)
+                    .foregroundStyle(Theme.Colors.textPrimary)
                 TagChip(text: site.taxMode.shortTitle, tint: Theme.Colors.textSecondary, filled: false)
                 Spacer()
                 if unpaidAmount > 0 {
